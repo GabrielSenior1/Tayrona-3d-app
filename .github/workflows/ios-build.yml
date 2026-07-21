@@ -28,6 +28,19 @@ jobs:
       - name: Sync iOS Project
         run: npx cap sync ios
 
-      - name: Build iOS App (Simulator Version)
+      - name: Build iOS App (Device Version)
         working-directory: ios/App
-        run: xcodebuild build -project App.xcodeproj -scheme App -destination 'platform=iOS Simulator,name=iPhone 17,OS=latest' CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
+        run: xcodebuild build -project App.xcodeproj -scheme App -destination 'generic/platform=iOS' -configuration Release CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO -derivedDataPath build
+
+      - name: Package IPA for AltStore
+        working-directory: ios/App
+        run: |
+          mkdir -p Payload
+          mv build/Build/Products/Release-iphoneos/App.app Payload/
+          zip -qr app.ipa Payload
+          
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tayrona-3d-ios-app
+          path: ios/App/app.ipa
