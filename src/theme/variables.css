@@ -1,0 +1,15 @@
+/* Ionic Variables and Safe Areas */
+:root {
+  --ion-safe-area-top: env(safe-area-inset-top);
+  --ion-safe-area-bottom: env(safe-area-inset-bottom);
+  --ion-safe-area-left: env(safe-area-inset-left);
+  --ion-safe-area-right: env(safe-area-inset-right);
+  
+  /* Background overridden by Tailwind liquid-dark */
+  --ion-background-color: #0a1628;
+  --ion-text-color: #c8d6e5;
+}
+
+.ios body {
+  --ion-background-color: #0a1628;
+}
