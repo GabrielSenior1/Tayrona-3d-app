@@ -28,6 +28,9 @@ const ModelDetail: React.FC = () => {
           DownloadManager.getLocalModelURI(model.androidModel).then(setLocalUri);
         }
       });
+    }
+  }, [model]);
+
   const handleDownload = async () => {
     if (!model) return;
     try {
