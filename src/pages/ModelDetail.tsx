@@ -6,6 +6,8 @@ import { DownloadManager } from '../services/DownloadManager';
 import { Capacitor } from '@capacitor/core';
 import { ScreenOrientation } from '@capacitor/screen-orientation';
 import { App } from '@capacitor/app';
+import { storage } from '../firebase';
+import { ref, getDownloadURL } from 'firebase/storage';
 const ModelDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const model = modelsDatabase.find(m => m.id === id);
@@ -94,12 +96,20 @@ const ModelDetail: React.FC = () => {
     
     if (Capacitor.getPlatform() === 'ios') {
       if (model.iosModel) {
-        const iosFirebaseUrl = `https://firebasestorage.googleapis.com/v0/b/tayrona-3d.firebasestorage.app/o/${encodeURIComponent(model.iosModel)}?alt=media`;
         try {
+          // Obtener la URL real de descarga (esto falla si el archivo no existe en Firebase)
+          const iosRef = ref(storage, model.iosModel);
+          const iosFirebaseUrl = await getDownloadURL(iosRef);
+          
           // Open URL to trigger Apple's AR Quick Look
           await App.openUrl({ url: iosFirebaseUrl });
-        } catch (e) {
-          window.open(iosFirebaseUrl, '_system');
+        } catch (e: any) {
+          console.error("Error obteniendo modelo iOS", e);
+          if (e.code === 'storage/object-not-found') {
+            alert(`El archivo 3D para iOS (${model.iosModel}) no se encontró en la base de datos.`);
+          } else {
+            alert("Ocurrió un error al intentar abrir AR.");
+          }
         }
       } else {
         alert("Modelo AR no disponible para iOS.");
