@@ -95,17 +95,22 @@ const ModelDetail: React.FC = () => {
     if (!localUri || !model) return;
     
     if (Capacitor.getPlatform() === 'ios') {
-      // En iOS, usamos la función nativa de model-viewer que convierte el .glb a .usdz al vuelo
-      const viewer = document.getElementById('main-viewer') as any;
-      if (viewer && typeof viewer.activateAR === 'function') {
+      if (model.iosModel) {
         try {
-          await viewer.activateAR();
-        } catch (e) {
-          console.error("Error activando AR nativo de model-viewer", e);
-          alert("Ocurrió un error al intentar abrir AR.");
+          const iosRef = ref(storage, model.iosModel);
+          const iosFirebaseUrl = await getDownloadURL(iosRef);
+          
+          await App.openUrl({ url: iosFirebaseUrl });
+        } catch (e: any) {
+          console.error("Error obteniendo modelo iOS", e);
+          if (e.code === 'storage/object-not-found') {
+            alert(`El archivo 3D para iOS (${model.iosModel}) no se encontró en la base de datos.`);
+          } else {
+            alert("Ocurrió un error al intentar abrir AR.");
+          }
         }
       } else {
-        alert("El visor 3D aún no está listo.");
+        alert("Modelo AR no disponible para iOS.");
       }
     } else if (Capacitor.getPlatform() === 'android' || Capacitor.isNativePlatform()) {
       // Build the Firebase download URL for the model
