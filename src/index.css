@@ -50,3 +50,6 @@ model-viewer {
   --poster-color: transparent;
   will-change: transform;
 }
+
+/* Hide default model-viewer AR button */
+model-viewer::part(default-ar-button) { display: none; }

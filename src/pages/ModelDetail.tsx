@@ -95,24 +95,17 @@ const ModelDetail: React.FC = () => {
     if (!localUri || !model) return;
     
     if (Capacitor.getPlatform() === 'ios') {
-      if (model.iosModel) {
+      // En iOS, usamos la función nativa de model-viewer que convierte el .glb a .usdz al vuelo
+      const viewer = document.getElementById('main-viewer') as any;
+      if (viewer && typeof viewer.activateAR === 'function') {
         try {
-          // Obtener la URL real de descarga (esto falla si el archivo no existe en Firebase)
-          const iosRef = ref(storage, model.iosModel);
-          const iosFirebaseUrl = await getDownloadURL(iosRef);
-          
-          // Open URL to trigger Apple's AR Quick Look
-          await App.openUrl({ url: iosFirebaseUrl });
-        } catch (e: any) {
-          console.error("Error obteniendo modelo iOS", e);
-          if (e.code === 'storage/object-not-found') {
-            alert(`El archivo 3D para iOS (${model.iosModel}) no se encontró en la base de datos.`);
-          } else {
-            alert("Ocurrió un error al intentar abrir AR.");
-          }
+          await viewer.activateAR();
+        } catch (e) {
+          console.error("Error activando AR nativo de model-viewer", e);
+          alert("Ocurrió un error al intentar abrir AR.");
         }
       } else {
-        alert("Modelo AR no disponible para iOS.");
+        alert("El visor 3D aún no está listo.");
       }
     } else if (Capacitor.getPlatform() === 'android' || Capacitor.isNativePlatform()) {
       // Build the Firebase download URL for the model
@@ -301,9 +294,11 @@ const ModelDetail: React.FC = () => {
               <>
                 {/* @ts-ignore */}
                 <model-viewer 
+                  id="main-viewer"
                   src={localUri} 
                   camera-controls 
                   auto-rotate 
+                  ar
                   shadow-intensity="1" 
                   exposure="1.1"
                   environment-image="neutral"
