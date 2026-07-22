@@ -100,13 +100,23 @@ const ModelDetail: React.FC = () => {
           const iosRef = ref(storage, model.iosModel);
           const iosFirebaseUrl = await getDownloadURL(iosRef);
           
-          await App.openUrl({ url: iosFirebaseUrl });
+          // En iOS WKWebView, la forma oficial de abrir AR Quick Look sin salir de la app
+          // es crear un enlace con rel="ar" y hacer clic en él.
+          const a = document.createElement('a');
+          a.setAttribute('rel', 'ar');
+          a.href = iosFirebaseUrl;
+          // Apple requiere que haya un hijo (como una imagen) en el enlace para que Quick Look funcione
+          a.appendChild(document.createElement('img')); 
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          
         } catch (e: any) {
           console.error("Error obteniendo modelo iOS", e);
           if (e.code === 'storage/object-not-found') {
             alert(`El archivo 3D para iOS (${model.iosModel}) no se encontró en la base de datos.`);
           } else {
-            alert("Ocurrió un error al intentar abrir AR.");
+            alert("Ocurrió un error al intentar abrir AR: " + (e.message || JSON.stringify(e)));
           }
         }
       } else {
