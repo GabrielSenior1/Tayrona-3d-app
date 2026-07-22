@@ -88,17 +88,28 @@ const ModelDetail: React.FC = () => {
     };
   }, [isVRMode]);
 
-  // AR handler: open Google Scene Viewer intent on Android
+  // AR handler: open Google Scene Viewer on Android, and Quick Look on iOS
   const handleAR = async () => {
-    if (!localUri) return;
+    if (!localUri || !model) return;
     
-    // On native Android, use Scene Viewer (Google's AR viewer)
-    if (Capacitor.isNativePlatform()) {
+    if (Capacitor.getPlatform() === 'ios') {
+      if (model.iosModel) {
+        const iosFirebaseUrl = `https://firebasestorage.googleapis.com/v0/b/tayrona-3d.firebasestorage.app/o/${encodeURIComponent(model.iosModel)}?alt=media`;
+        try {
+          // Open URL to trigger Apple's AR Quick Look
+          await App.openUrl({ url: iosFirebaseUrl });
+        } catch (e) {
+          window.open(iosFirebaseUrl, '_system');
+        }
+      } else {
+        alert("Modelo AR no disponible para iOS.");
+      }
+    } else if (Capacitor.getPlatform() === 'android' || Capacitor.isNativePlatform()) {
       // Build the Firebase download URL for the model
-      const firebaseUrl = `https://firebasestorage.googleapis.com/v0/b/tayrona-3d.firebasestorage.app/o/${encodeURIComponent(model!.androidModel)}?alt=media`;
+      const firebaseUrl = `https://firebasestorage.googleapis.com/v0/b/tayrona-3d.firebasestorage.app/o/${encodeURIComponent(model.androidModel)}?alt=media`;
       
       // Use https instead of intent scheme, and use App.openUrl so it passes to the OS intent handler
-      const sceneViewerUrl = `https://arvr.google.com/scene-viewer/1.0?file=${encodeURIComponent(firebaseUrl)}&mode=ar_preferred&title=${encodeURIComponent(model!.title)}`;
+      const sceneViewerUrl = `https://arvr.google.com/scene-viewer/1.0?file=${encodeURIComponent(firebaseUrl)}&mode=ar_preferred&title=${encodeURIComponent(model.title)}`;
       try {
         await App.openUrl({ url: sceneViewerUrl });
       } catch (e) {
