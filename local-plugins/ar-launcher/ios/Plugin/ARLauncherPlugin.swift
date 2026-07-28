@@ -1,6 +1,7 @@
 import Foundation
 import Capacitor
 import QuickLook
+import UIKit
 
 @objc(ARLauncherPlugin)
 public class ARLauncherPlugin: CAPPlugin, CAPBridgedPlugin, QLPreviewControllerDataSource, QLPreviewControllerDelegate {
@@ -48,6 +49,6 @@ public class ARLauncherPlugin: CAPPlugin, CAPBridgedPlugin, QLPreviewControllerD
     }
     
     public func previewController(_ controller: QLPreviewController, previewItemAt index: Int) -> QLPreviewItem {
-        return self.fileUrl! as QLPreviewItem
+        return self.fileUrl! as NSURL
     }
 }
