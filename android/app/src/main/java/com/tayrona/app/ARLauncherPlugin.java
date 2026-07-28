@@ -43,8 +43,8 @@ public class ARLauncherPlugin extends Plugin {
             intent.setDataAndType(contentUri, "model/gltf-binary");
             intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            // DO NOT set a package — let Android resolve the best viewer
-
+            intent.setPackage("com.google.ar.core");
+            
             getContext().startActivity(intent);
             call.resolve();
         } catch (android.content.ActivityNotFoundException e) {
@@ -58,9 +58,10 @@ public class ARLauncherPlugin extends Plugin {
                     file
                 );
                 Intent fallbackIntent = new Intent(Intent.ACTION_VIEW);
-                fallbackIntent.setDataAndType(contentUri, "application/octet-stream");
+                fallbackIntent.setDataAndType(contentUri, "model/gltf-binary");
                 fallbackIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
                 fallbackIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                fallbackIntent.setPackage("com.google.android.googlequicksearchbox");
                 getContext().startActivity(fallbackIntent);
                 call.resolve();
             } catch (Exception ex) {
