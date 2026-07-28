@@ -46,20 +46,27 @@ const Splash: React.FC = () => {
       video.addEventListener('ended', goToHome);
       video.addEventListener('error', () => setVideoFailed(true));
       
-      // Try to play. On iOS WKWebView, autoplay may be blocked.
-      // Don't immediately give up — the 'playing' event is the real indicator.
-      const p = video.play();
-      if (p) p.catch(() => {
-        // play() was blocked, but don't set videoFailed yet.
-        // The playCheck timeout will handle it if the video truly can't play.
-        console.log('video.play() promise rejected — waiting for playCheck timeout');
-      });
+      // Fetch video as blob to bypass WKWebView byte-range request bug with capacitor:// scheme
+      fetch('/assets/splash.mp4')
+        .then(res => res.blob())
+        .then(blob => {
+          if (!video) return;
+          video.src = URL.createObjectURL(blob);
+          const p = video.play();
+          if (p) p.catch(() => {
+            console.log('video.play() promise rejected');
+          });
+        })
+        .catch(err => {
+          console.error("Failed to fetch splash video blob", err);
+          setVideoFailed(true);
+        });
     }
 
-    // If playing doesn't fire in 3s, force fallback
+    // If playing doesn't fire in 3.5s, force fallback
     playCheck = setTimeout(() => {
       setVideoFailed(true);
-    }, 3000);
+    }, 3500);
 
     // Absolute safety: go home after 13s (video is ~10s long)
     const safety = setTimeout(goToHome, 13000);
@@ -103,7 +110,6 @@ const Splash: React.FC = () => {
           {!videoFailed ? (
             <video
               ref={videoRef}
-              src="/assets/splash.mp4"
               autoPlay
               muted
               playsInline
