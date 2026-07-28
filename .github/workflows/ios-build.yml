@@ -28,31 +28,6 @@ jobs:
       - name: Sync iOS Project
         run: npx cap sync ios
 
-      - name: Add ARLauncher plugin files to Xcode project
-        working-directory: ios/App
-        run: |
-          gem install xcodeproj
-          ruby -e '
-            require "xcodeproj"
-            project = Xcodeproj::Project.open("App.xcodeproj")
-            target = project.targets.first
-            
-            # Find the App group (where AppDelegate.swift lives)
-            app_group = project.main_group["App"]
-            
-            # Add Swift and ObjC files — path is relative to the xcodeproj location
-            swift_ref = app_group.new_file("App/ARLauncherPlugin.swift")
-            m_ref = app_group.new_file("App/ARLauncherPlugin.m")
-            
-            # Add to the compile sources build phase
-            target.add_file_references([swift_ref, m_ref])
-            
-            # Link QuickLook framework
-            target.add_system_framework("QuickLook")
-            
-            project.save
-            puts "Successfully added ARLauncherPlugin files to Xcode project"
-          '
 
       - name: Build iOS App (Device Version)
         working-directory: ios/App
