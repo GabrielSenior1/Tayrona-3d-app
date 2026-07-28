@@ -3,7 +3,8 @@ import { IonPage, IonContent, IonHeader, IonToolbar, IonButtons, IonBackButton, 
 import { useParams } from 'react-router-dom';
 import { modelsDatabase } from '../data/modelsData';
 import { DownloadManager } from '../services/DownloadManager';
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, registerPlugin } from '@capacitor/core';
+const ARLauncher = registerPlugin<any>('ARLauncher');
 import { ScreenOrientation } from '@capacitor/screen-orientation';
 const ModelDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -12,6 +13,7 @@ const ModelDetail: React.FC = () => {
   const [isDownloaded, setIsDownloaded] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [localUri, setLocalUri] = useState<string>('');
+  const [iosLocalUri, setIosLocalUri] = useState<string>('');
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [downloadSpeedText, setDownloadSpeedText] = useState("");
   const [isVRMode, setIsVRMode] = useState(false);
@@ -27,6 +29,13 @@ const ModelDetail: React.FC = () => {
           DownloadManager.getLocalModelURI(model.androidModel).then(setLocalUri);
         }
       });
+      if (Capacitor.getPlatform() === 'ios' && model.iosModel) {
+        DownloadManager.isIOSModelDownloaded(model.iosModel).then((exists) => {
+          if (exists) {
+            DownloadManager.getLocalIOSModelURI(model.iosModel).then(setIosLocalUri);
+          }
+        });
+      }
     }
   }, [model]);
 
@@ -64,9 +73,9 @@ const ModelDetail: React.FC = () => {
       setIsDownloaded(true);
       // En iOS, también descargar el .usdz en segundo plano para AR offline
       if (Capacitor.getPlatform() === 'ios' && model.iosModel) {
-        DownloadManager.downloadIOSModel(model.iosModel).catch(err =>
-          console.error('Error descargando .usdz en segundo plano:', err)
-        );
+        DownloadManager.downloadIOSModel(model.iosModel)
+          .then(setIosLocalUri)
+          .catch(err => console.error('Error descargando .usdz en segundo plano:', err));
       }
     } catch (e: any) {
       console.error("Fallo al descargar", e);
@@ -129,19 +138,20 @@ const ModelDetail: React.FC = () => {
         alert("Modelo AR no disponible para iOS.");
       }
     } else if (Capacitor.getPlatform() === 'android' || Capacitor.isNativePlatform()) {
-      // Usar model-viewer que ya tiene el modelo .glb cargado localmente
-      // activateAR() genera el intent para Scene Viewer sin re-descargar
       try {
-        const viewer = document.getElementById('main-viewer') as any;
-        if (viewer && viewer.activateAR) {
-          await viewer.activateAR();
+        if (Capacitor.isNativePlatform()) {
+          // Usar el plugin nativo que provee un FileProvider URI para offline AR
+          await ARLauncher.openAR({ fileName: model.androidModel });
         } else {
-          console.error("model-viewer no encontrado o activateAR no disponible");
-          alert("No se pudo iniciar AR. Intenta de nuevo.");
+          // Web fallback
+          const viewer = document.getElementById('main-viewer') as any;
+          if (viewer && viewer.activateAR) {
+            await viewer.activateAR();
+          }
         }
-      } catch (e) {
+      } catch (e: any) {
         console.error("No se pudo abrir AR", e);
-        alert("Error al abrir AR. Verifica que tu dispositivo soporte ARCore.");
+        alert(e.message || "Error al abrir AR. Verifica que tu dispositivo soporte ARCore.");
       }
     }
   };
@@ -329,29 +339,64 @@ const ModelDetail: React.FC = () => {
                 ></model-viewer>
 
                 {/* AR button */}
-                <button 
-                  onClick={handleAR}
-                  style={{
-                    position: 'absolute',
-                    bottom: 12,
-                    right: 12,
-                    background: '#69f0ae',
-                    color: '#0a1628',
-                    fontWeight: 'bold',
-                    padding: '8px 16px',
-                    borderRadius: 10,
-                    border: 'none',
-                    fontSize: 13,
-                    cursor: 'pointer',
-                    boxShadow: '0 4px 16px rgba(105,240,174,0.3)',
-                    zIndex: 10,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6
-                  }}
-                >
-                  🌿 Mostrar en AR
-                </button>
+                {Capacitor.getPlatform() === 'ios' ? (
+                  <a 
+                    rel="ar" 
+                    href={iosLocalUri || '#'} 
+                    onClick={(e) => { 
+                      if (!iosLocalUri) { 
+                        e.preventDefault(); 
+                        alert("El modelo de AR se está descargando o preparando, por favor espera un momento."); 
+                      } 
+                    }}
+                    style={{
+                      position: 'absolute',
+                      bottom: 12,
+                      right: 12,
+                      background: '#69f0ae',
+                      color: '#0a1628',
+                      fontWeight: 'bold',
+                      padding: '8px 16px',
+                      borderRadius: 10,
+                      border: 'none',
+                      fontSize: 13,
+                      cursor: 'pointer',
+                      boxShadow: '0 4px 16px rgba(105,240,174,0.3)',
+                      zIndex: 10,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      textDecoration: 'none'
+                    }}
+                  >
+                    <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" style={{display: 'none'}} />
+                    🌿 Mostrar en AR
+                  </a>
+                ) : (
+                  <button 
+                    onClick={handleAR}
+                    style={{
+                      position: 'absolute',
+                      bottom: 12,
+                      right: 12,
+                      background: '#69f0ae',
+                      color: '#0a1628',
+                      fontWeight: 'bold',
+                      padding: '8px 16px',
+                      borderRadius: 10,
+                      border: 'none',
+                      fontSize: 13,
+                      cursor: 'pointer',
+                      boxShadow: '0 4px 16px rgba(105,240,174,0.3)',
+                      zIndex: 10,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6
+                    }}
+                  >
+                    🌿 Mostrar en AR
+                  </button>
+                )}
 
                 {/* VR button */}
                 <button 
