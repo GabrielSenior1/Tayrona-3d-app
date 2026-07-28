@@ -174,6 +174,24 @@ export class DownloadManager {
   }
 
   /**
+   * Obtiene la URI raw (file://) del modelo iOS para usar en plugins nativos
+   */
+  static async getRawIOSModelURI(fileName: string): Promise<string> {
+    if (Capacitor.getPlatform() === 'web') return '';
+
+    try {
+      const uri = await Filesystem.getUri({
+        path: `models/${fileName}`,
+        directory: Directory.Data,
+      });
+      return uri.uri;
+    } catch (e) {
+      console.error("Error al obtener URI raw del modelo iOS", e);
+      return '';
+    }
+  }
+
+  /**
    * Descarga el .usdz desde Firebase y lo guarda localmente para AR offline en iOS
    */
   static async downloadIOSModel(fileName: string): Promise<string> {

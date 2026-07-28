@@ -42,13 +42,13 @@ const Splash: React.FC = () => {
         // We must verify the video is actually moving.
         progressCheck = setInterval(() => {
           if (video.currentTime === lastTime) {
-            // Video is stuck! Decoder is probably dead. Force fallback.
-            setVideoFailed(true);
-            clearInterval(progressCheck);
+            // Video might be buffering or stuck. We give it more time instead of forcing fallback immediately.
+            // Let's just update lastTime. If it stays stuck for too long, the absolute safety will kick in.
+            lastTime = video.currentTime;
           } else {
             lastTime = video.currentTime;
           }
-        }, 1000);
+        }, 3000);
       });
       video.addEventListener('ended', goToHome);
       video.addEventListener('error', () => setVideoFailed(true));
@@ -58,10 +58,10 @@ const Splash: React.FC = () => {
       if (p) p.catch(() => setVideoFailed(true));
     }
 
-    // If playing doesn't fire in 2s, force fallback
+    // If playing doesn't fire in 8s, force fallback
     playCheck = setTimeout(() => {
       setVideoFailed(true);
-    }, 2000);
+    }, 8000);
 
     // Absolute safety: go home after 13s (video is ~10s long)
     const safety = setTimeout(goToHome, 13000);

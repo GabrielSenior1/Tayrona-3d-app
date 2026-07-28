@@ -51,7 +51,17 @@ public class ARLauncherPlugin extends Plugin {
             call.resolve();
         } catch (android.content.ActivityNotFoundException e) {
             Log.e("ARLauncher", "Google Play Services for AR not installed", e);
-            call.reject("Google Play Services for AR (Scene Viewer) no está instalado en este dispositivo.");
+            try {
+                Intent marketIntent = new Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=com.google.ar.core"));
+                marketIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                getContext().startActivity(marketIntent);
+                call.reject("Google Play Services for AR no está instalado. Redirigiendo a Play Store...");
+            } catch (android.content.ActivityNotFoundException anfe) {
+                Intent webIntent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=com.google.ar.core"));
+                webIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                getContext().startActivity(webIntent);
+                call.reject("Por favor instala Google Play Services for AR.");
+            }
         } catch (Exception e) {
             Log.e("ARLauncher", "Error launching AR", e);
             call.reject("Error al abrir AR: " + e.getMessage(), e);

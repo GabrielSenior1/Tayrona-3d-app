@@ -111,28 +111,28 @@ const ModelDetail: React.FC = () => {
     if (Capacitor.getPlatform() === 'ios') {
       if (model.iosModel) {
         try {
-          // Intentar obtener la ruta local del .usdz
-          let usdzUri = await DownloadManager.getLocalIOSModelURI(model.iosModel);
-          
-          if (!usdzUri) {
-            // Si no está descargado, descargarlo ahora (requiere internet solo esta vez)
-            usdzUri = await DownloadManager.downloadIOSModel(model.iosModel);
+          if (Capacitor.isNativePlatform()) {
+            let usdzUri = await DownloadManager.getRawIOSModelURI(model.iosModel);
+            if (!usdzUri) {
+              await DownloadManager.downloadIOSModel(model.iosModel);
+              usdzUri = await DownloadManager.getRawIOSModelURI(model.iosModel);
+            }
+            await ARLauncher.openAR({ fileUri: usdzUri });
+          } else {
+            // Web fallback for iOS
+            let usdzUri = await DownloadManager.getLocalIOSModelURI(model.iosModel);
+            if (!usdzUri) usdzUri = await DownloadManager.downloadIOSModel(model.iosModel);
+            const a = document.createElement('a');
+            a.setAttribute('rel', 'ar');
+            a.href = usdzUri;
+            a.appendChild(document.createElement('img')); 
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
           }
-          
-          // Crear enlace con rel="ar" usando la ruta local
-          // La URL termina en .usdz → Apple siempre abre AR Quick Look
-          const a = document.createElement('a');
-          a.setAttribute('rel', 'ar');
-          a.href = usdzUri;
-          // Apple requiere que haya un hijo (como una imagen) en el enlace para que Quick Look funcione
-          a.appendChild(document.createElement('img')); 
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          
         } catch (e: any) {
           console.error("Error abriendo AR en iOS", e);
-          alert("Error al abrir AR: " + (e.message || "Verifica tu conexión para la primera descarga"));
+          alert(e.message || "Error al abrir AR en iOS.");
         }
       } else {
         alert("Modelo AR no disponible para iOS.");
@@ -151,7 +151,7 @@ const ModelDetail: React.FC = () => {
         }
       } catch (e: any) {
         console.error("No se pudo abrir AR", e);
-        alert(e.message || "Error al abrir AR. Verifica que tu dispositivo soporte ARCore.");
+        alert(e.message || "Error al abrir AR en Android.");
       }
     }
   };
@@ -339,64 +339,29 @@ const ModelDetail: React.FC = () => {
                 ></model-viewer>
 
                 {/* AR button */}
-                {Capacitor.getPlatform() === 'ios' ? (
-                  <a 
-                    rel="ar" 
-                    href={iosLocalUri || '#'} 
-                    onClick={(e) => { 
-                      if (!iosLocalUri) { 
-                        e.preventDefault(); 
-                        alert("El modelo de AR se está descargando o preparando, por favor espera un momento."); 
-                      } 
-                    }}
-                    style={{
-                      position: 'absolute',
-                      bottom: 12,
-                      right: 12,
-                      background: '#69f0ae',
-                      color: '#0a1628',
-                      fontWeight: 'bold',
-                      padding: '8px 16px',
-                      borderRadius: 10,
-                      border: 'none',
-                      fontSize: 13,
-                      cursor: 'pointer',
-                      boxShadow: '0 4px 16px rgba(105,240,174,0.3)',
-                      zIndex: 10,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      textDecoration: 'none'
-                    }}
-                  >
-                    <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" style={{display: 'none'}} />
-                    🌿 Mostrar en AR
-                  </a>
-                ) : (
-                  <button 
-                    onClick={handleAR}
-                    style={{
-                      position: 'absolute',
-                      bottom: 12,
-                      right: 12,
-                      background: '#69f0ae',
-                      color: '#0a1628',
-                      fontWeight: 'bold',
-                      padding: '8px 16px',
-                      borderRadius: 10,
-                      border: 'none',
-                      fontSize: 13,
-                      cursor: 'pointer',
-                      boxShadow: '0 4px 16px rgba(105,240,174,0.3)',
-                      zIndex: 10,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 6
-                    }}
-                  >
-                    🌿 Mostrar en AR
-                  </button>
-                )}
+                <button 
+                  onClick={handleAR}
+                  style={{
+                    position: 'absolute',
+                    bottom: 12,
+                    right: 12,
+                    background: '#69f0ae',
+                    color: '#0a1628',
+                    fontWeight: 'bold',
+                    padding: '8px 16px',
+                    borderRadius: 10,
+                    border: 'none',
+                    fontSize: 13,
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 16px rgba(105,240,174,0.3)',
+                    zIndex: 10,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6
+                  }}
+                >
+                  🌿 Mostrar en AR
+                </button>
 
                 {/* VR button */}
                 <button 

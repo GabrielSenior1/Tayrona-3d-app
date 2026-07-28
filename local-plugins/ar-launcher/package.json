@@ -1,0 +1,10 @@
+{
+  "name": "ar-launcher",
+  "version": "0.0.1",
+  "description": "AR Launcher",
+  "capacitor": {
+    "ios": {
+      "src": "ios"
+    }
+  }
+}
