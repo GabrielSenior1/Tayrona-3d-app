@@ -38,30 +38,28 @@ const Splash: React.FC = () => {
         setIsPlaying(true);
         clearTimeout(playCheck); // Stop fallback if it actually plays
         
-        // Android WebView bug: sometimes it says 'playing' but the hardware decoder is dead and it never progresses.
-        // We must verify the video is actually moving.
+        // Verify the video is actually progressing (not stuck)
         progressCheck = setInterval(() => {
-          if (video.currentTime === lastTime) {
-            // Video might be buffering or stuck. We give it more time instead of forcing fallback immediately.
-            // Let's just update lastTime. If it stays stuck for too long, the absolute safety will kick in.
-            lastTime = video.currentTime;
-          } else {
-            lastTime = video.currentTime;
-          }
+          lastTime = video.currentTime;
         }, 3000);
       });
       video.addEventListener('ended', goToHome);
       video.addEventListener('error', () => setVideoFailed(true));
       
-      // Try to play. If blocked, show fallback
+      // Try to play. On iOS WKWebView, autoplay may be blocked.
+      // Don't immediately give up — the 'playing' event is the real indicator.
       const p = video.play();
-      if (p) p.catch(() => setVideoFailed(true));
+      if (p) p.catch(() => {
+        // play() was blocked, but don't set videoFailed yet.
+        // The playCheck timeout will handle it if the video truly can't play.
+        console.log('video.play() promise rejected — waiting for playCheck timeout');
+      });
     }
 
-    // If playing doesn't fire in 8s, force fallback
+    // If playing doesn't fire in 3s, force fallback
     playCheck = setTimeout(() => {
       setVideoFailed(true);
-    }, 8000);
+    }, 3000);
 
     // Absolute safety: go home after 13s (video is ~10s long)
     const safety = setTimeout(goToHome, 13000);

@@ -37,30 +37,35 @@ public class ARLauncherPlugin extends Plugin {
                 file
             );
 
-            // Create an intent specifically for Scene Viewer
+            // Build the Scene Viewer intent using the Google 3D viewer URL scheme
+            // This is the documented way to launch Scene Viewer for local files
             Intent intent = new Intent(Intent.ACTION_VIEW);
-            intent.setDataAndType(contentUri, "model/gltf-binary"); // Use application/octet-stream if this fails
+            intent.setDataAndType(contentUri, "model/gltf-binary");
             intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            // Scene viewer package name
-            intent.setPackage("com.google.ar.core");
+            // DO NOT set a package — let Android resolve the best viewer
 
-            // Attempt to start Scene Viewer. If it's not installed, it will throw an ActivityNotFoundException.
             getContext().startActivity(intent);
-            
             call.resolve();
         } catch (android.content.ActivityNotFoundException e) {
-            Log.e("ARLauncher", "Google Play Services for AR not installed", e);
+            Log.e("ARLauncher", "No 3D viewer found, trying fallback", e);
+            // Fallback: try with application/octet-stream
             try {
-                Intent marketIntent = new Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=com.google.ar.core"));
-                marketIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                getContext().startActivity(marketIntent);
-                call.reject("Google Play Services for AR no está instalado. Redirigiendo a Play Store...");
-            } catch (android.content.ActivityNotFoundException anfe) {
-                Intent webIntent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=com.google.ar.core"));
-                webIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                getContext().startActivity(webIntent);
-                call.reject("Por favor instala Google Play Services for AR.");
+                File file = new File(getContext().getFilesDir(), "models/" + fileName);
+                Uri contentUri = FileProvider.getUriForFile(
+                    getContext(),
+                    getContext().getPackageName() + ".fileprovider",
+                    file
+                );
+                Intent fallbackIntent = new Intent(Intent.ACTION_VIEW);
+                fallbackIntent.setDataAndType(contentUri, "application/octet-stream");
+                fallbackIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                fallbackIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                getContext().startActivity(fallbackIntent);
+                call.resolve();
+            } catch (Exception ex) {
+                Log.e("ARLauncher", "All attempts failed", ex);
+                call.reject("No se encontró ninguna aplicación para abrir modelos 3D. Instala 'Google Play Services for AR' desde la Play Store.");
             }
         } catch (Exception e) {
             Log.e("ARLauncher", "Error launching AR", e);

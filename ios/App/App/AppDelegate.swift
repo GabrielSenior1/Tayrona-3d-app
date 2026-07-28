@@ -8,6 +8,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         // Override point for customization after application launch.
+        // Register native plugins
+        let bridge = (self.window?.rootViewController as? CAPBridgeViewController)?.bridge
+        bridge?.registerPluginInstance(ARLauncherPlugin())
         return true
     }
 

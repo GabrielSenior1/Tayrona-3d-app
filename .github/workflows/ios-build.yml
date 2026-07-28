@@ -28,6 +28,33 @@ jobs:
       - name: Sync iOS Project
         run: npx cap sync ios
 
+      - name: Add ARLauncher plugin files to Xcode project
+        working-directory: ios/App
+        run: |
+          # Install ruby xcodeproj gem
+          gem install xcodeproj
+          ruby -e '
+            require "xcodeproj"
+            project = Xcodeproj::Project.open("App.xcodeproj")
+            target = project.targets.first
+            group = project.main_group.find_subpath("App", true)
+            
+            # Add Swift file
+            swift_ref = group.new_file("App/ARLauncherPlugin.swift")
+            target.source_build_phase.add_file_reference(swift_ref)
+            
+            # Add ObjC file
+            m_ref = group.new_file("App/ARLauncherPlugin.m")
+            target.source_build_phase.add_file_reference(m_ref)
+            
+            # Add QuickLook framework
+            quicklook = project.frameworks_group.new_file("System/Library/Frameworks/QuickLook.framework")
+            target.frameworks_build_phase.add_file_reference(quicklook)
+            
+            project.save
+            puts "Added ARLauncherPlugin files and QuickLook framework to Xcode project"
+          '
+
       - name: Build iOS App (Device Version)
         working-directory: ios/App
         run: xcodebuild build -project App.xcodeproj -scheme App -destination 'generic/platform=iOS' -configuration Release CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO -derivedDataPath build
