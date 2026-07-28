@@ -31,28 +31,27 @@ jobs:
       - name: Add ARLauncher plugin files to Xcode project
         working-directory: ios/App
         run: |
-          # Install ruby xcodeproj gem
           gem install xcodeproj
           ruby -e '
             require "xcodeproj"
             project = Xcodeproj::Project.open("App.xcodeproj")
             target = project.targets.first
-            group = project.main_group.find_subpath("App", true)
             
-            # Add Swift file
-            swift_ref = group.new_file("App/ARLauncherPlugin.swift")
-            target.source_build_phase.add_file_reference(swift_ref)
+            # Find the App group (where AppDelegate.swift lives)
+            app_group = project.main_group["App"]
             
-            # Add ObjC file
-            m_ref = group.new_file("App/ARLauncherPlugin.m")
-            target.source_build_phase.add_file_reference(m_ref)
+            # Add Swift and ObjC files — path is relative to the xcodeproj location
+            swift_ref = app_group.new_file("App/ARLauncherPlugin.swift")
+            m_ref = app_group.new_file("App/ARLauncherPlugin.m")
             
-            # Add QuickLook framework
-            quicklook = project.frameworks_group.new_file("System/Library/Frameworks/QuickLook.framework")
-            target.frameworks_build_phase.add_file_reference(quicklook)
+            # Add to the compile sources build phase
+            target.add_file_references([swift_ref, m_ref])
+            
+            # Link QuickLook framework
+            target.add_system_framework("QuickLook")
             
             project.save
-            puts "Added ARLauncherPlugin files and QuickLook framework to Xcode project"
+            puts "Successfully added ARLauncherPlugin files to Xcode project"
           '
 
       - name: Build iOS App (Device Version)
