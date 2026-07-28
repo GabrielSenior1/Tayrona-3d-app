@@ -5,9 +5,6 @@ import { modelsDatabase } from '../data/modelsData';
 import { DownloadManager } from '../services/DownloadManager';
 import { Capacitor } from '@capacitor/core';
 import { ScreenOrientation } from '@capacitor/screen-orientation';
-import { App } from '@capacitor/app';
-import { storage } from '../firebase';
-import { ref, getDownloadURL } from 'firebase/storage';
 const ModelDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const model = modelsDatabase.find(m => m.id === id);
@@ -65,6 +62,12 @@ const ModelDetail: React.FC = () => {
       });
       setLocalUri(uri);
       setIsDownloaded(true);
+      // En iOS, también descargar el .usdz en segundo plano para AR offline
+      if (Capacitor.getPlatform() === 'ios' && model.iosModel) {
+        DownloadManager.downloadIOSModel(model.iosModel).catch(err =>
+          console.error('Error descargando .usdz en segundo plano:', err)
+        );
+      }
     } catch (e: any) {
       console.error("Fallo al descargar", e);
       alert("Error al descargar el modelo: " + (e.message || "Revisa tu conexión"));
@@ -90,21 +93,28 @@ const ModelDetail: React.FC = () => {
     };
   }, [isVRMode]);
 
-  // AR handler: open Google Scene Viewer on Android, and Quick Look on iOS
+  // AR handler: uses local files for offline support
+  // Android: model-viewer.activateAR() uses the .glb already loaded in memory
+  // iOS: local .usdz file via capacitor://localhost/... (URL ends in .usdz → Apple always recognizes it)
   const handleAR = async () => {
     if (!localUri || !model) return;
     
     if (Capacitor.getPlatform() === 'ios') {
       if (model.iosModel) {
         try {
-          const iosRef = ref(storage, model.iosModel);
-          const iosFirebaseUrl = await getDownloadURL(iosRef);
+          // Intentar obtener la ruta local del .usdz
+          let usdzUri = await DownloadManager.getLocalIOSModelURI(model.iosModel);
           
-          // En iOS WKWebView, la forma oficial de abrir AR Quick Look sin salir de la app
-          // es crear un enlace con rel="ar" y hacer clic en él.
+          if (!usdzUri) {
+            // Si no está descargado, descargarlo ahora (requiere internet solo esta vez)
+            usdzUri = await DownloadManager.downloadIOSModel(model.iosModel);
+          }
+          
+          // Crear enlace con rel="ar" usando la ruta local
+          // La URL termina en .usdz → Apple siempre abre AR Quick Look
           const a = document.createElement('a');
           a.setAttribute('rel', 'ar');
-          a.href = iosFirebaseUrl;
+          a.href = usdzUri;
           // Apple requiere que haya un hijo (como una imagen) en el enlace para que Quick Look funcione
           a.appendChild(document.createElement('img')); 
           document.body.appendChild(a);
@@ -112,28 +122,26 @@ const ModelDetail: React.FC = () => {
           document.body.removeChild(a);
           
         } catch (e: any) {
-          console.error("Error obteniendo modelo iOS", e);
-          if (e.code === 'storage/object-not-found') {
-            alert(`El archivo 3D para iOS (${model.iosModel}) no se encontró en la base de datos.`);
-          } else {
-            alert("Ocurrió un error al intentar abrir AR: " + (e.message || JSON.stringify(e)));
-          }
+          console.error("Error abriendo AR en iOS", e);
+          alert("Error al abrir AR: " + (e.message || "Verifica tu conexión para la primera descarga"));
         }
       } else {
         alert("Modelo AR no disponible para iOS.");
       }
     } else if (Capacitor.getPlatform() === 'android' || Capacitor.isNativePlatform()) {
-      // Build the Firebase download URL for the model
-      const firebaseUrl = `https://firebasestorage.googleapis.com/v0/b/tayrona-3d.firebasestorage.app/o/${encodeURIComponent(model.androidModel)}?alt=media`;
-      
-      // Use https instead of intent scheme, and use App.openUrl so it passes to the OS intent handler
-      const sceneViewerUrl = `https://arvr.google.com/scene-viewer/1.0?file=${encodeURIComponent(firebaseUrl)}&mode=ar_preferred&title=${encodeURIComponent(model.title)}`;
+      // Usar model-viewer que ya tiene el modelo .glb cargado localmente
+      // activateAR() genera el intent para Scene Viewer sin re-descargar
       try {
-        await App.openUrl({ url: sceneViewerUrl });
+        const viewer = document.getElementById('main-viewer') as any;
+        if (viewer && viewer.activateAR) {
+          await viewer.activateAR();
+        } else {
+          console.error("model-viewer no encontrado o activateAR no disponible");
+          alert("No se pudo iniciar AR. Intenta de nuevo.");
+        }
       } catch (e) {
         console.error("No se pudo abrir AR", e);
-        // Fallback to window.open
-        window.open(sceneViewerUrl, '_system');
+        alert("Error al abrir AR. Verifica que tu dispositivo soporte ARCore.");
       }
     }
   };

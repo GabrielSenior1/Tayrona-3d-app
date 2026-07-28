@@ -131,4 +131,80 @@ export class DownloadManager {
       console.error('Error al eliminar modelo:', e);
     }
   }
+
+  // ──────────────────────────────────────────────
+  // Métodos para modelos iOS (.usdz) — AR Offline
+  // ──────────────────────────────────────────────
+
+  /**
+   * Verifica si el modelo .usdz de iOS ya está descargado localmente
+   */
+  static async isIOSModelDownloaded(fileName: string): Promise<boolean> {
+    if (Capacitor.getPlatform() === 'web') return false;
+
+    try {
+      await Filesystem.stat({
+        path: `models/${fileName}`,
+        directory: Directory.Data,
+      });
+      return true;
+    } catch (e) {
+      return false; // El archivo no existe
+    }
+  }
+
+  /**
+   * Obtiene la URI local del .usdz para inyectarla en el enlace rel="ar"
+   * Devuelve una URL tipo capacitor://localhost/_capacitor_file_/.../modelo.usdz
+   * que termina en .usdz → Apple siempre la reconoce como AR Quick Look
+   */
+  static async getLocalIOSModelURI(fileName: string): Promise<string> {
+    if (Capacitor.getPlatform() === 'web') return '';
+
+    try {
+      const uri = await Filesystem.getUri({
+        path: `models/${fileName}`,
+        directory: Directory.Data,
+      });
+      return Capacitor.convertFileSrc(uri.uri);
+    } catch (e) {
+      console.error("Error al obtener URI local del modelo iOS", e);
+      return '';
+    }
+  }
+
+  /**
+   * Descarga el .usdz desde Firebase y lo guarda localmente para AR offline en iOS
+   */
+  static async downloadIOSModel(fileName: string): Promise<string> {
+    try {
+      const storageRef = ref(storage, fileName);
+      const url = await getDownloadURL(storageRef);
+
+      if (Capacitor.getPlatform() === 'web') return url;
+
+      // Asegurar que el directorio existe
+      try {
+        await Filesystem.mkdir({
+          path: 'models',
+          directory: Directory.Data,
+          recursive: true
+        });
+      } catch (e) {
+        // Ignorar si ya existe
+      }
+
+      await Filesystem.downloadFile({
+        url: url,
+        path: `models/${fileName}`,
+        directory: Directory.Data,
+        progress: false // Descarga silenciosa en segundo plano
+      });
+
+      return await this.getLocalIOSModelURI(fileName);
+    } catch (error) {
+      console.error('Error descargando modelo iOS (.usdz):', error);
+      throw error;
+    }
+  }
 }
