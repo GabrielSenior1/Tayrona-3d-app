@@ -2,11 +2,11 @@
 import PackageDescription
 
 let package = Package(
-    name: "ARLauncher",
+    name: "ArLauncher",
     platforms: [.iOS(.v15)],
     products: [
         .library(
-            name: "ARLauncher",
+            name: "ArLauncher",
             targets: ["ARLauncherPlugin"])
     ],
     dependencies: [
