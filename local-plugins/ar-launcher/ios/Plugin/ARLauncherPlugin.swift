@@ -3,8 +3,13 @@ import Capacitor
 import QuickLook
 
 @objc(ARLauncherPlugin)
-public class ARLauncherPlugin: CAPPlugin, QLPreviewControllerDataSource, QLPreviewControllerDelegate {
+public class ARLauncherPlugin: CAPPlugin, CAPBridgedPlugin, QLPreviewControllerDataSource, QLPreviewControllerDelegate {
     
+    public let identifier = "ARLauncherPlugin"
+    public let jsName = "ARLauncher"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "openAR", returnType: CAPPluginReturnPromise)
+    ]
     var fileUrl: URL?
     
     @objc func openAR(_ call: CAPPluginCall) {
