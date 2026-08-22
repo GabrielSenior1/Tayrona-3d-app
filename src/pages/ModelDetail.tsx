@@ -102,6 +102,8 @@ const ModelDetail: React.FC = () => {
     };
   }, [isVRMode]);
 
+  const [isPreparingAR, setIsPreparingAR] = useState(false);
+
   // AR handler: uses local files for offline support
   // Android: model-viewer.activateAR() uses the .glb already loaded in memory
   // iOS: local .usdz file via capacitor://localhost/... (URL ends in .usdz → Apple always recognizes it)
@@ -112,11 +114,28 @@ const ModelDetail: React.FC = () => {
       if (model.iosModel) {
         try {
           if (Capacitor.isNativePlatform()) {
-            let usdzUri = await DownloadManager.getRawIOSModelURI(model.iosModel);
-            if (!usdzUri) {
-              await DownloadManager.downloadIOSModel(model.iosModel);
-              usdzUri = await DownloadManager.getRawIOSModelURI(model.iosModel);
+            // First verify the .usdz is actually downloaded
+            const usdzExists = await DownloadManager.isIOSModelDownloaded(model.iosModel);
+            let usdzUri: string;
+            
+            if (!usdzExists) {
+              // Download the .usdz first — show feedback to user
+              setIsPreparingAR(true);
+              try {
+                await DownloadManager.downloadIOSModel(model.iosModel);
+              } finally {
+                setIsPreparingAR(false);
+              }
             }
+            
+            // Get the raw file:// URI for the native plugin
+            usdzUri = await DownloadManager.getRawIOSModelURI(model.iosModel);
+            
+            if (!usdzUri) {
+              alert("No se pudo obtener la ruta del modelo AR. Intenta descargarlo nuevamente.");
+              return;
+            }
+            
             await ARLauncher.openAR({ fileUri: usdzUri });
           } else {
             // Web fallback for iOS
@@ -338,55 +357,62 @@ const ModelDetail: React.FC = () => {
                   style={{ width: '100%', height: '100%', minHeight: 300 }}
                 ></model-viewer>
 
-                {/* AR button */}
-                <button 
-                  onClick={handleAR}
-                  style={{
-                    position: 'absolute',
-                    bottom: 12,
-                    right: 12,
-                    background: '#69f0ae',
-                    color: '#0a1628',
-                    fontWeight: 'bold',
-                    padding: '8px 16px',
-                    borderRadius: 10,
-                    border: 'none',
-                    fontSize: 13,
-                    cursor: 'pointer',
-                    boxShadow: '0 4px 16px rgba(105,240,174,0.3)',
-                    zIndex: 10,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6
-                  }}
-                >
-                  🌿 Mostrar en AR
-                </button>
+                {/* Button row */}
+                <div style={{
+                  position: 'absolute',
+                  bottom: 12,
+                  left: 12,
+                  right: 12,
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  gap: 8,
+                  zIndex: 10
+                }}>
+                  {/* VR button */}
+                  <button 
+                    onClick={() => setIsVRMode(true)}
+                    style={{
+                      background: '#7c3aed',
+                      color: '#fff',
+                      fontWeight: 'bold',
+                      padding: '8px 12px',
+                      borderRadius: 10,
+                      border: 'none',
+                      fontSize: 12,
+                      cursor: 'pointer',
+                      boxShadow: '0 4px 16px rgba(124,58,237,0.3)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4
+                    }}
+                  >
+                    🥽 VR
+                  </button>
 
-                {/* VR button */}
-                <button 
-                  onClick={() => setIsVRMode(true)}
-                  style={{
-                    position: 'absolute',
-                    bottom: 12,
-                    left: 12,
-                    background: '#7c3aed',
-                    color: '#fff',
-                    fontWeight: 'bold',
-                    padding: '8px 16px',
-                    borderRadius: 10,
-                    border: 'none',
-                    fontSize: 13,
-                    cursor: 'pointer',
-                    boxShadow: '0 4px 16px rgba(124,58,237,0.3)',
-                    zIndex: 10,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6
-                  }}
-                >
-                  🥽 Ver en VR
-                </button>
+                  {/* Removed 3D HD Button */}
+
+                  {/* AR button */}
+                  <button 
+                    onClick={handleAR}
+                    style={{
+                      background: '#69f0ae',
+                      color: '#0a1628',
+                      fontWeight: 'bold',
+                      padding: '8px 12px',
+                      borderRadius: 10,
+                      border: 'none',
+                      fontSize: 12,
+                      cursor: 'pointer',
+                      boxShadow: '0 4px 16px rgba(105,240,174,0.3)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4
+                    }}
+                    disabled={isPreparingAR}
+                  >
+                    {isPreparingAR ? '⏳ Preparando AR...' : '🌿 AR'}
+                  </button>
+                </div>
               </>
             ) : null}
           </div>
