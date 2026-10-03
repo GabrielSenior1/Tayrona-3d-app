@@ -6,27 +6,24 @@ import './AvatarAsistente.css';
 
 interface AvatarProps {
   textoGuion?: string;
+  onSpeakEnd?: () => void;
+  onAvatarClick?: () => void;
 }
 
-const DEFAULT_TEXT = "Hola, soy SIMI y hago parte del semillero de investigación de modelado e impresión 3D de la Universidad del Magdalena.";
-
-const AvatarAsistente: React.FC<AvatarProps> = ({ textoGuion }) => {
+const AvatarAsistente: React.FC<AvatarProps> = ({ textoGuion, onSpeakEnd, onAvatarClick }) => {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
-  const [showBubble, setShowBubble] = useState(false); // No mostrar nubecita al inicio
-  const [currentText, setCurrentText] = useState(textoGuion || DEFAULT_TEXT);
+  const [showBubble, setShowBubble] = useState(false);
+  const [currentText, setCurrentText] = useState("");
   const objectRef = useRef<HTMLObjectElement>(null);
 
-  useEffect(() => {
-    setCurrentText(textoGuion || DEFAULT_TEXT);
-  }, [textoGuion]);
+  // Variable para evitar que una lectura anterior dispare onSpeakEnd cuando se canceló
+  const currentSpeakId = useRef(0);
 
   useEffect(() => {
     const checkPreferences = async () => {
       const { value } = await Preferences.get({ key: 'avatar_enabled' });
-      if (value === 'false') {
-        setIsVisible(false);
-      }
+      if (value === 'false') setIsVisible(false);
     };
     checkPreferences();
   }, []);
@@ -37,11 +34,8 @@ const AvatarAsistente: React.FC<AvatarProps> = ({ textoGuion }) => {
       if (svgDoc) {
         const mouth = svgDoc.getElementById('mouth');
         if (mouth) {
-          if (speaking) {
-            mouth.classList.add('mouth-speaking');
-          } else {
-            mouth.classList.remove('mouth-speaking');
-          }
+          if (speaking) mouth.classList.add('mouth-speaking');
+          else mouth.classList.remove('mouth-speaking');
         }
       }
     } catch (e) {
@@ -49,10 +43,17 @@ const AvatarAsistente: React.FC<AvatarProps> = ({ textoGuion }) => {
     }
   };
 
-  const hablar = async () => {
-    if (!isVisible) return;
+  const hablar = async (textToSpeak: string) => {
+    if (!isVisible || !textToSpeak) return;
     
+    currentSpeakId.current += 1;
+    const thisSpeakId = currentSpeakId.current;
+    
+    // Si ya estaba hablando, detenerlo primero
+    await TextToSpeech.stop().catch(() => {});
+
     setShowBubble(true);
+    setCurrentText(textToSpeak);
 
     try {
       setIsSpeaking(true);
@@ -60,10 +61,10 @@ const AvatarAsistente: React.FC<AvatarProps> = ({ textoGuion }) => {
       await Haptics.impact({ style: ImpactStyle.Light });
 
       await TextToSpeech.speak({
-        text: currentText,
-        lang: 'es-CO', // Español de Colombia
-        rate: 1.0,
-        pitch: 1.1, // Un poco más agudo para que suene más amigable
+        text: textToSpeak,
+        lang: 'es-CO',
+        rate: 1.05,
+        pitch: 1.1,
         volume: 1.0,
         category: 'ambient',
       });
@@ -72,36 +73,57 @@ const AvatarAsistente: React.FC<AvatarProps> = ({ textoGuion }) => {
     } catch (error) {
       console.error("Error en TTS:", error);
     } finally {
-      setIsSpeaking(false);
-      toggleMouthAnimation(false);
-      setTimeout(() => setShowBubble(false), 8000); // Dar más tiempo para leer textos largos
+      if (currentSpeakId.current === thisSpeakId) {
+        setIsSpeaking(false);
+        toggleMouthAnimation(false);
+        setTimeout(() => setShowBubble(false), 2000);
+        if (onSpeakEnd) onSpeakEnd();
+      }
     }
   };
 
+  const detener = async () => {
+    currentSpeakId.current += 1; // Cancela cualquier callback pendiente
+    await TextToSpeech.stop().catch(() => {});
+    setIsSpeaking(false);
+    toggleMouthAnimation(false);
+    setShowBubble(false);
+  };
+
   useEffect(() => {
-    // Solo actualizar el texto si cambia, pero no hablar automáticamente
-    if (textoGuion) {
-      setCurrentText(textoGuion);
+    if (textoGuion && textoGuion.trim() !== '') {
+      hablar(textoGuion);
+    } else {
+      detener();
     }
     return () => {
-      TextToSpeech.stop().catch(()=>console.log("Audio detenido"));
+      detener();
     };
   }, [textoGuion]);
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Evita que el click se propague y cancele el tour globalmente
+    if (onAvatarClick) {
+      onAvatarClick();
+    } else if (!textoGuion) {
+      // Comportamiento por defecto si no hay tour script
+      hablar("Hola, soy SIMI.");
+    }
+  };
 
   if (!isVisible) return null;
 
   return (
     <div className="avatar-wrapper">
-      {showBubble && (
+      {showBubble && currentText && (
         <div className="pixel-bubble">
           {currentText}
         </div>
       )}
       <div 
         className="avatar-container" 
-        onClick={hablar}
+        onClick={handleClick}
         role="button"
-        aria-label="Asistente virtual SIMI"
       >
         <object 
           ref={objectRef}

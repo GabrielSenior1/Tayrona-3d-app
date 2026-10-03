@@ -14,6 +14,34 @@ const Home: React.FC = () => {
   const [isDownloadingAll, setIsDownloadingAll] = useState(false);
   const [downloadedCount, setDownloadedCount] = useState(0);
   const [totalModels] = useState(modelsDatabase.length);
+  const [tourStep, setTourStep] = useState(0);
+
+  const tourTexts = [
+    "",
+    "Hola, soy SIMI y hago parte del semillero de investigación de modelado e impresión 3D de la Universidad del Magdalena.",
+    "Aquí te muestro las opciones que tenemos para explorar la biodiversidad del Parque Tayrona en 3D.",
+    "Desde la vida marina, con peces y reptiles acuáticos...",
+    "Pasando por los manglares, la sala cuna del océano...",
+    "Y la vida terrestre, con habitantes de la selva.",
+    "Para poder ver los modelos, primero tienes que descargarlos presionando este botón superior. ¡Empecemos!"
+  ];
+
+  const handleAvatarClick = () => {
+    if (tourStep === 0) setTourStep(1);
+    else setTourStep(0);
+  };
+
+  const handleSpeakEnd = () => {
+    if (tourStep > 0 && tourStep < tourTexts.length - 1) {
+      setTourStep(prev => prev + 1);
+    } else if (tourStep === tourTexts.length - 1) {
+      setTimeout(() => setTourStep(0), 4000);
+    }
+  };
+
+  const stopTour = () => {
+    if (tourStep !== 0) setTourStep(0);
+  };
 
   // Check how many models are already downloaded
   useEffect(() => {
@@ -85,19 +113,23 @@ const Home: React.FC = () => {
           <IonButtons slot="end">
             {Capacitor.isNativePlatform() && (
               <button
-                onClick={() => showDownloadModal ? setShowDownloadModal(false) : setShowDownloadModal(true)}
-                className="animate-pulse"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  showDownloadModal ? setShowDownloadModal(false) : setShowDownloadModal(true);
+                }}
+                className={tourStep === 6 ? "animate-pulse" : ""}
                 style={{
-                  background: 'rgba(105, 240, 174, 0.15)',
-                  border: '2px solid #69f0ae',
+                  background: tourStep === 6 ? 'rgba(105, 240, 174, 0.15)' : 'transparent',
+                  border: tourStep === 6 ? '2px solid #69f0ae' : 'none',
                   borderRadius: '50%',
-                  color: '#69f0ae',
+                  color: tourStep === 6 ? '#69f0ae' : '#c8d6e5',
                   padding: '8px',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  boxShadow: '0 0 15px rgba(105, 240, 174, 0.6)'
+                  boxShadow: tourStep === 6 ? '0 0 25px rgba(105, 240, 174, 0.8)' : 'none',
+                  transition: 'all 0.3s ease'
                 }}
               >
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
@@ -206,8 +238,12 @@ const Home: React.FC = () => {
           </div>
         )}
 
-      <IonContent fullscreen>
-        <AvatarAsistente textoGuion={guiones.general.home} />
+      <IonContent fullscreen onClick={stopTour}>
+        <AvatarAsistente 
+          textoGuion={tourTexts[tourStep]} 
+          onSpeakEnd={handleSpeakEnd} 
+          onAvatarClick={handleAvatarClick} 
+        />
 
         <div className="p-6">
           <h1 className="text-3xl font-bold mb-2">Explora la</h1>
@@ -217,9 +253,14 @@ const Home: React.FC = () => {
             {categories.map(cat => (
               <div 
                 key={cat.id} 
-                onClick={() => history.push(`/category/${cat.id}`)}
-                className="glass-card p-5 relative overflow-hidden active:scale-95 transition-transform duration-200 border border-[rgba(255,255,255,0.2)] shadow-[0_0_15px_rgba(255,255,255,0.1)] hover:shadow-[0_0_20px_rgba(255,255,255,0.3)] animate-pulse"
-                style={{ animationDuration: '3s' }}
+                onClick={(e) => { e.stopPropagation(); history.push(`/category/${cat.id}`); }}
+                className={`glass-card p-5 relative overflow-hidden active:scale-95 transition-all duration-300 ${
+                  (tourStep === 3 && cat.id === 'Mar') || 
+                  (tourStep === 4 && cat.id === 'Mangle') || 
+                  (tourStep === 5 && cat.id === 'Terrestre') 
+                    ? 'border-2 border-[#69f0ae] shadow-[0_0_25px_rgba(105,240,174,0.6)] animate-pulse' 
+                    : 'border border-[rgba(255,255,255,0.2)]'
+                }`}
               >
                 {/* Decorative blob */}
                 <div className={`absolute -right-6 -top-6 w-24 h-24 rounded-full bg-gradient-to-br ${cat.color} opacity-20 blur-xl`}></div>
