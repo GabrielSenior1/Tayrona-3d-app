@@ -26,7 +26,6 @@ import Splash from './pages/Splash';
 import Home from './pages/Home';
 import Category from './pages/Category';
 import ModelDetail from './pages/ModelDetail';
-import AvatarAsistente from './components/AvatarAsistente';
 
 setupIonicReact({
   mode: 'ios', // Forza estilo Apple Liquid
@@ -45,7 +44,6 @@ const App: React.FC = () => (
         </Route>
       </IonRouterOutlet>
     </IonReactRouter>
-    <AvatarAsistente />
   </IonApp>
 );
 

@@ -4,6 +4,7 @@ import { useHistory } from 'react-router-dom';
 import { modelsDatabase } from '../data/modelsData';
 import { DownloadManager } from '../services/DownloadManager';
 import { Capacitor } from '@capacitor/core';
+import AvatarAsistente from '../components/AvatarAsistente';
 
 const Home: React.FC = () => {
   const history = useHistory();
@@ -88,26 +89,27 @@ const Home: React.FC = () => {
                   background: 'transparent',
                   border: 'none',
                   color: '#c8d6e5',
-                  fontSize: 22,
                   padding: '8px 12px',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
                 }}
               >
-                ⋮
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
               </button>
             )}
           </IonButtons>
         </IonToolbar>
       </IonHeader>
       
-      <IonContent fullscreen>
-        {/* Download all modal/dropdown */}
-        {showDownloadModal && (
-          <div style={{
-            position: 'fixed',
-            top: 56,
-            right: 12,
-            zIndex: 999,
+      {/* Download all modal/dropdown */}
+      {showDownloadModal && (
+        <div style={{
+          position: 'fixed',
+          top: 60,
+          right: 12,
+          zIndex: 99999,
             background: 'rgba(15, 30, 55, 0.98)',
             border: '1px solid rgba(105, 240, 174, 0.15)',
             borderRadius: 16,
@@ -199,6 +201,9 @@ const Home: React.FC = () => {
             )}
           </div>
         )}
+
+      <IonContent fullscreen>
+        <AvatarAsistente />
 
         <div className="p-6">
           <h1 className="text-3xl font-bold mb-2">Explora la</h1>

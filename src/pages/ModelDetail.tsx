@@ -6,6 +6,8 @@ import { DownloadManager } from '../services/DownloadManager';
 import { Capacitor, registerPlugin } from '@capacitor/core';
 const ARLauncher = registerPlugin<any>('ARLauncher');
 import { ScreenOrientation } from '@capacitor/screen-orientation';
+import AvatarAsistente from '../components/AvatarAsistente';
+import guiones from '../data/guiones.json';
 const ModelDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const model = modelsDatabase.find(m => m.id === id);
@@ -296,6 +298,7 @@ const ModelDetail: React.FC = () => {
         </IonToolbar>
       </IonHeader>
       <IonContent style={{ '--background': '#0a1628' } as any} fullscreen>
+        <AvatarAsistente textoGuion={(guiones.modelos as any)[model.id] || guiones.modelos.default} />
         <div style={{ padding: 16 }}>
           {/* 3D Viewer Card */}
           <div className="glass-card" style={{ 

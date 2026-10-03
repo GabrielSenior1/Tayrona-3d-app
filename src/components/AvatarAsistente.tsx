@@ -5,24 +5,34 @@ import { Preferences } from '@capacitor/preferences';
 import './AvatarAsistente.css';
 
 interface AvatarProps {
-  textoGuion?: string; // El texto que va a leer
+  textoGuion?: string;
 }
+
+const DEFAULT_TEXT = "Hola, soy SIMI y hago parte del semillero de investigación de modelado e impresión 3D de la Universidad del Magdalena.";
 
 const AvatarAsistente: React.FC<AvatarProps> = ({ textoGuion }) => {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
+  const [showBubble, setShowBubble] = useState(true); // Mostrar nubecita al inicio
+  const [currentText, setCurrentText] = useState(textoGuion || DEFAULT_TEXT);
   const objectRef = useRef<HTMLObjectElement>(null);
 
   useEffect(() => {
-    // Revisar si el usuario lo desactivó en preferencias
+    setCurrentText(textoGuion || DEFAULT_TEXT);
+  }, [textoGuion]);
+
+  useEffect(() => {
     const checkPreferences = async () => {
       const { value } = await Preferences.get({ key: 'avatar_enabled' });
-      // Por defecto está activo a menos que guardemos 'false'
       if (value === 'false') {
         setIsVisible(false);
       }
     };
     checkPreferences();
+    
+    // Ocultar la burbuja inicial después de 5 segundos
+    const timer = setTimeout(() => setShowBubble(false), 5000);
+    return () => clearTimeout(timer);
   }, []);
 
   const toggleMouthAnimation = (speaking: boolean) => {
@@ -43,16 +53,18 @@ const AvatarAsistente: React.FC<AvatarProps> = ({ textoGuion }) => {
     }
   };
 
-  const hablar = async (texto: string) => {
+  const hablar = async () => {
     if (!isVisible) return;
+    
+    setShowBubble(true);
 
     try {
       setIsSpeaking(true);
       toggleMouthAnimation(true);
-      await Haptics.impact({ style: ImpactStyle.Light }); // Vibración al inicio
+      await Haptics.impact({ style: ImpactStyle.Light });
 
       await TextToSpeech.speak({
-        text: texto,
+        text: currentText,
         lang: 'es-ES',
         rate: 1.0,
         pitch: 1.0,
@@ -60,23 +72,21 @@ const AvatarAsistente: React.FC<AvatarProps> = ({ textoGuion }) => {
         category: 'ambient',
       });
 
-      await Haptics.impact({ style: ImpactStyle.Light }); // Vibración al final
+      await Haptics.impact({ style: ImpactStyle.Light });
     } catch (error) {
       console.error("Error en TTS:", error);
     } finally {
       setIsSpeaking(false);
       toggleMouthAnimation(false);
+      setTimeout(() => setShowBubble(false), 3000);
     }
   };
 
-  // Efecto para hablar automáticamente cuando cambia el guion
   useEffect(() => {
     if (textoGuion && textoGuion.trim() !== '') {
-      hablar(textoGuion);
+      hablar();
     }
-    
     return () => {
-      // Detener el audio si el componente se desmonta
       TextToSpeech.stop().catch(()=>console.log("Audio detenido"));
     };
   }, [textoGuion]);
@@ -84,22 +94,29 @@ const AvatarAsistente: React.FC<AvatarProps> = ({ textoGuion }) => {
   if (!isVisible) return null;
 
   return (
-    <div 
-      className="avatar-container" 
-      onClick={() => hablar(textoGuion || "Hola, soy tu guía en este recorrido.")}
-      role="button"
-      aria-label="Asistente virtual. Toca para escuchar la información."
-    >
-      <object 
-        ref={objectRef}
-        data="/assets/avatar/avatar.svg" 
-        type="image/svg+xml" 
-        className="avatar-object"
-        aria-hidden="true" // Oculto para lectores de pantalla porque la acción está en el div
-        onLoad={() => toggleMouthAnimation(isSpeaking)} // Asegura que la boca empiece cerrada
+    <div className="avatar-wrapper">
+      {showBubble && (
+        <div className="pixel-bubble">
+          {currentText}
+        </div>
+      )}
+      <div 
+        className="avatar-container" 
+        onClick={hablar}
+        role="button"
+        aria-label="Asistente virtual SIMI"
       >
-        Tu navegador no soporta SVG
-      </object>
+        <object 
+          ref={objectRef}
+          data="/assets/avatar/avatar.svg" 
+          type="image/svg+xml" 
+          className="avatar-object"
+          aria-hidden="true"
+          onLoad={() => toggleMouthAnimation(isSpeaking)}
+        >
+          Tu navegador no soporta SVG
+        </object>
+      </div>
     </div>
   );
 };
