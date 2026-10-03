@@ -5,6 +5,7 @@ import { modelsDatabase } from '../data/modelsData';
 import { DownloadManager } from '../services/DownloadManager';
 import { Capacitor } from '@capacitor/core';
 import AvatarAsistente from '../components/AvatarAsistente';
+import guiones from '../data/guiones.json';
 
 const Home: React.FC = () => {
   const history = useHistory();
@@ -85,15 +86,18 @@ const Home: React.FC = () => {
             {Capacitor.isNativePlatform() && (
               <button
                 onClick={() => showDownloadModal ? setShowDownloadModal(false) : setShowDownloadModal(true)}
+                className="animate-pulse"
                 style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: '#c8d6e5',
-                  padding: '8px 12px',
+                  background: 'rgba(105, 240, 174, 0.15)',
+                  border: '2px solid #69f0ae',
+                  borderRadius: '50%',
+                  color: '#69f0ae',
+                  padding: '8px',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center'
+                  justifyContent: 'center',
+                  boxShadow: '0 0 15px rgba(105, 240, 174, 0.6)'
                 }}
               >
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
@@ -203,7 +207,7 @@ const Home: React.FC = () => {
         )}
 
       <IonContent fullscreen>
-        <AvatarAsistente />
+        <AvatarAsistente textoGuion={guiones.general.home} />
 
         <div className="p-6">
           <h1 className="text-3xl font-bold mb-2">Explora la</h1>
@@ -214,7 +218,8 @@ const Home: React.FC = () => {
               <div 
                 key={cat.id} 
                 onClick={() => history.push(`/category/${cat.id}`)}
-                className="glass-card p-5 relative overflow-hidden active:scale-95 transition-transform duration-200"
+                className="glass-card p-5 relative overflow-hidden active:scale-95 transition-transform duration-200 border border-[rgba(255,255,255,0.2)] shadow-[0_0_15px_rgba(255,255,255,0.1)] hover:shadow-[0_0_20px_rgba(255,255,255,0.3)] animate-pulse"
+                style={{ animationDuration: '3s' }}
               >
                 {/* Decorative blob */}
                 <div className={`absolute -right-6 -top-6 w-24 h-24 rounded-full bg-gradient-to-br ${cat.color} opacity-20 blur-xl`}></div>

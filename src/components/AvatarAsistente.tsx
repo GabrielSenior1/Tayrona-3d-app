@@ -13,7 +13,7 @@ const DEFAULT_TEXT = "Hola, soy SIMI y hago parte del semillero de investigació
 const AvatarAsistente: React.FC<AvatarProps> = ({ textoGuion }) => {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
-  const [showBubble, setShowBubble] = useState(true); // Mostrar nubecita al inicio
+  const [showBubble, setShowBubble] = useState(false); // No mostrar nubecita al inicio
   const [currentText, setCurrentText] = useState(textoGuion || DEFAULT_TEXT);
   const objectRef = useRef<HTMLObjectElement>(null);
 
@@ -29,10 +29,6 @@ const AvatarAsistente: React.FC<AvatarProps> = ({ textoGuion }) => {
       }
     };
     checkPreferences();
-    
-    // Ocultar la burbuja inicial después de 5 segundos
-    const timer = setTimeout(() => setShowBubble(false), 5000);
-    return () => clearTimeout(timer);
   }, []);
 
   const toggleMouthAnimation = (speaking: boolean) => {
@@ -65,9 +61,9 @@ const AvatarAsistente: React.FC<AvatarProps> = ({ textoGuion }) => {
 
       await TextToSpeech.speak({
         text: currentText,
-        lang: 'es-ES',
+        lang: 'es-CO', // Español de Colombia
         rate: 1.0,
-        pitch: 1.0,
+        pitch: 1.1, // Un poco más agudo para que suene más amigable
         volume: 1.0,
         category: 'ambient',
       });
@@ -78,13 +74,14 @@ const AvatarAsistente: React.FC<AvatarProps> = ({ textoGuion }) => {
     } finally {
       setIsSpeaking(false);
       toggleMouthAnimation(false);
-      setTimeout(() => setShowBubble(false), 3000);
+      setTimeout(() => setShowBubble(false), 8000); // Dar más tiempo para leer textos largos
     }
   };
 
   useEffect(() => {
-    if (textoGuion && textoGuion.trim() !== '') {
-      hablar();
+    // Solo actualizar el texto si cambia, pero no hablar automáticamente
+    if (textoGuion) {
+      setCurrentText(textoGuion);
     }
     return () => {
       TextToSpeech.stop().catch(()=>console.log("Audio detenido"));

@@ -1,11 +1,11 @@
 {
   "general": {
-    "bienvenida": "¡Hola! Soy tu asistente virtual. Estoy aquí para guiarte en este recorrido en 3D.",
+    "home": "Hola, soy SIMI y hago parte del semillero de investigación de modelado e impresión 3D de la Universidad del Magdalena. Para ver los modelos en 3D, primero tienes que descargarlos presionando el botón de descarga arriba. Luego, elige una de las 3 opciones para explorar la biodiversidad.",
     "despedida": "Espero que hayas disfrutado la experiencia. ¡Hasta la próxima!"
   },
   "modelos": {
     "jaguar": "Estás viendo un modelo en 3D del Jaguar, el felino más grande de América. Habita en la Sierra Nevada y es un animal sagrado para las culturas indígenas.",
     "ranita": "Esta es la ranita arlequín. Es una especie endémica y muy sensible a los cambios en su ecosistema.",
-    "default": "Este es un increíble modelo en 3D del Parque Nacional Natural Tayrona."
+    "default": "Este es un increíble modelo en 3D de la biodiversidad de nuestra región."
   }
 }
