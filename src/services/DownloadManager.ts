@@ -45,6 +45,19 @@ export class DownloadManager {
   }
 
   /**
+   * Obtiene la URL pública en Firebase Storage del modelo
+   */
+  static async getRemoteModelURL(fileName: string): Promise<string> {
+    try {
+      const storageRef = ref(storage, fileName);
+      return await getDownloadURL(storageRef);
+    } catch (e) {
+      console.warn("Could not get remote download URL", e);
+      return '';
+    }
+  }
+
+  /**
    * Descarga el modelo desde Firebase y lo guarda en el almacenamiento local
    */
   static async downloadModel(fileName: string, onProgress?: (bytes: number, total: number) => void): Promise<string> {

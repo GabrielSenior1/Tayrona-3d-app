@@ -1,0 +1,21 @@
+.avatar-container {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 150px;
+  height: 250px;
+  z-index: 1000;
+  cursor: pointer;
+  filter: drop-shadow(0px 4px 10px rgba(0, 0, 0, 0.3));
+  transition: transform 0.2s ease-in-out;
+}
+
+.avatar-container:active {
+  transform: scale(0.95);
+}
+
+.avatar-object {
+  width: 100%;
+  height: 100%;
+  pointer-events: none; /* Esto permite que el clic en el SVG pase al div contenedor */
+}

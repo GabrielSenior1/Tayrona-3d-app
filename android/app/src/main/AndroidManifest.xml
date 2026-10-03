@@ -43,5 +43,13 @@
     <queries>
         <package android:name="com.google.ar.core" />
         <package android:name="com.google.android.googlequicksearchbox" />
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:mimeType="model/gltf-binary" />
+        </intent>
     </queries>
 </manifest>

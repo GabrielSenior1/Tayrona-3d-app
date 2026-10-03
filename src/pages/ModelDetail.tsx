@@ -159,8 +159,22 @@ const ModelDetail: React.FC = () => {
     } else if (Capacitor.getPlatform() === 'android' || Capacitor.isNativePlatform()) {
       try {
         if (Capacitor.isNativePlatform()) {
-          // Usar el plugin nativo que provee un FileProvider URI para offline AR
-          await ARLauncher.openAR({ fileName: model.androidModel });
+          setIsPreparingAR(true);
+          let remoteUrl = '';
+          try {
+            remoteUrl = await DownloadManager.getRemoteModelURL(model.androidModel);
+          } catch (err) {
+            console.warn("No se pudo obtener URL remota, usando archivo local:", err);
+          } finally {
+            setIsPreparingAR(false);
+          }
+
+          // Usar el plugin nativo que abre Google Scene Viewer con máxima calidad y escala
+          await ARLauncher.openAR({ 
+            fileName: model.androidModel,
+            fileUrl: remoteUrl,
+            title: model.title 
+          });
         } else {
           // Web fallback
           const viewer = document.getElementById('main-viewer') as any;
@@ -171,6 +185,8 @@ const ModelDetail: React.FC = () => {
       } catch (e: any) {
         console.error("No se pudo abrir AR", e);
         alert(e.message || "Error al abrir AR en Android.");
+      } finally {
+        setIsPreparingAR(false);
       }
     }
   };
@@ -351,6 +367,7 @@ const ModelDetail: React.FC = () => {
                   camera-controls 
                   auto-rotate 
                   ar
+                  ar-modes="scene-viewer webxr quick-look"
                   shadow-intensity="1" 
                   exposure="1.1"
                   environment-image="neutral"

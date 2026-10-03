@@ -1,0 +1,11 @@
+{
+  "general": {
+    "bienvenida": "¡Hola! Soy tu asistente virtual. Estoy aquí para guiarte en este recorrido en 3D.",
+    "despedida": "Espero que hayas disfrutado la experiencia. ¡Hasta la próxima!"
+  },
+  "modelos": {
+    "jaguar": "Estás viendo un modelo en 3D del Jaguar, el felino más grande de América. Habita en la Sierra Nevada y es un animal sagrado para las culturas indígenas.",
+    "ranita": "Esta es la ranita arlequín. Es una especie endémica y muy sensible a los cambios en su ecosistema.",
+    "default": "Este es un increíble modelo en 3D del Parque Nacional Natural Tayrona."
+  }
+}
