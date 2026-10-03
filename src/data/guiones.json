@@ -4,8 +4,29 @@
     "despedida": "Espero que hayas disfrutado la experiencia. ¡Hasta la próxima!"
   },
   "modelos": {
-    "jaguar": "Estás viendo un modelo en 3D del Jaguar, el felino más grande de América. Habita en la Sierra Nevada y es un animal sagrado para las culturas indígenas.",
-    "ranita": "Esta es la ranita arlequín. Es una especie endémica y muy sensible a los cambios en su ecosistema.",
+    "barracuda": "Estás viendo a la Gran Barracuda, el depredador veloz del Caribe. Puede nadar hasta a 58 kilómetros por hora y cazar en los arrecifes del Parque Tayrona.",
+    "cangrejo_fantasma": "Este es el Cangrejo Fantasma. Corre tan rápido por la arena que parece invisible, y además, ¡tiene visión de 360 grados!",
+    "damisela_azul": "Observa a la Damisela Azul, el zafiro del Caribe. Su impresionante color no es por pigmentos, sino que refleja la luz como un espejo vivo.",
+    "langosta": "Te presento a la Langosta Espinosa. A diferencia de otras, no tiene pinzas pero usa sus largas antenas para defenderse y comunicarse bajo el agua.",
+    "mero": "¡Guau, un Mero Guasa! Es uno de los gigantes del arrecife. Puede llegar a pesar 360 kilos y es súper curioso con los buzos.",
+    "pargo": "Este es el famoso Pargo Rojo, un tesoro del caribe y de la pesca artesanal de la Sierra Nevada. ¡Puede vivir más de 50 años!",
+    "pez_cirujano": "Estás viendo al Pez Cirujano Azul. Se llama así porque tiene una pequeña espina en la cola tan afilada como el bisturí de un doctor.",
+    "pez_cofre": "Mira qué curioso es el Pez Cofre. Su forma de cajita está hecha de placas óseas, y su diseño es tan aerodinámico que inspiró modelos de automóviles.",
+    "pez_globo": "¡Cuidado con el Pez Globo! Si se asusta, se infla como pelota. Y aunque es muy pequeño, contiene una toxina extremadamente peligrosa.",
+    "pez_leon": "Este es el Pez León. Aunque es hermoso, es una especie invasora muy voraz. ¡En Colombia se promueve cazarlo y comerlo para proteger nuestros arrecifes!",
+    "pez_loro": "Te presento al Pez Loro Verde, el fabricante de playas. Al morder los corales buscando algas, su sistema digestivo produce arena blanca.",
+    "pez_mariposa": "Este es el Pez Mariposa. Tiene un falso ojo cerca de su cola para engañar a los depredadores y que ataquen al lado equivocado.",
+    "pez_trompeta": "Observa al Pez Trompeta, un maestro del camuflaje. Se esconde nadando verticalmente entre los corales para sorprender a sus presas.",
+    "pulpo": "Aquí tienes al Pulpo del Caribe, un genio de 9 cerebros y 3 corazones. Es el invertebrado más inteligente del planeta y un experto del disfraz.",
+    "sargento_mayor": "Este es el Sargento Mayor. Sus rayas negras parecen insignias militares. ¡Los machos son súper agresivos cuando protegen sus huevitos!",
+    "tetra_colombiano": "Te presento al Tetra Colombiano, un pez de agua dulce endémico de la Sierra Nevada. ¡Un verdadero embajador de nuestra tierra en el mundo entero!",
+    "tortuga_carey": "Mira a la majestuosa Tortuga Carey. Viaja miles de kilómetros usando el campo magnético de la Tierra para regresar a la misma playa donde nació.",
+    "mangle_blanco": "Este es el Mangle Blanco. Puedes reconocerlo fácilmente por dos puntitos rojos en sus hojas, que son glándulas que usa para expulsar la sal.",
+    "mangle_boton": "Te presento al Mangle Botón. Crece en la zona más alta y sus frutos parecen piñitas. Históricamente, su dura madera se usó para construir embarcaciones.",
+    "mangle_negro": "Este es el Mangle Negro. Literalmente suda sal por sus hojas y tiene raíces que salen del lodo como dedos para poder respirar.",
+    "mangle_rojo": "Estás viendo al Mangle Rojo, el caminante del agua. Sus raíces filtran casi toda la sal y capturan muchísimo carbono para ayudar al planeta.",
+    "jaguar": "Te presento al imponente Jaguar, el rey de la Sierra Nevada. Es un excelente nadador y tiene la mordida más potente de todos los felinos de América.",
+    "sapitos_arlequin": "Estos son los hermosos Sapitos Arlequín. Sus brillantes colores advierten que son tóxicos, pero lastimosamente están en peligro crítico de extinción.",
     "default": "Este es un increíble modelo en 3D de la biodiversidad de nuestra región."
   }
 }
