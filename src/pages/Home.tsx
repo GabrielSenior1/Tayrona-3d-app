@@ -137,6 +137,9 @@ const Home: React.FC = () => {
                 onClick={(e) => {
                   e.stopPropagation();
                   showDownloadModal ? setShowDownloadModal(false) : setShowDownloadModal(true);
+                  if (tourStep === 6) {
+                    setTourStep(0);
+                  }
                 }}
                 className={tourStep === 6 ? "spotlight-active" : ""}
                 style={{
@@ -160,11 +163,16 @@ const Home: React.FC = () => {
       </IonHeader>
       
       {showDownloadModal && (
-        <div style={{
-          position: 'fixed',
-          top: 60,
-          right: 12,
-          zIndex: 99999,
+        <>
+          <div 
+            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99998 }} 
+            onClick={() => !isDownloadingAll && setShowDownloadModal(false)}
+          />
+          <div style={{
+            position: 'fixed',
+            top: 60,
+            right: 12,
+            zIndex: 99999,
             background: 'rgba(15, 30, 55, 0.98)',
             border: '1px solid rgba(105, 240, 174, 0.15)',
             borderRadius: 16,
@@ -255,7 +263,8 @@ const Home: React.FC = () => {
               </>
             )}
           </div>
-        )}
+        </>
+      )}
 
       <IonContent fullscreen>
         <AvatarAsistente 
