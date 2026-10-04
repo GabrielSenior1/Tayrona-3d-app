@@ -47,7 +47,7 @@ const Splash: React.FC = () => {
       video.addEventListener('error', () => setVideoFailed(true));
       
       // Fetch video as blob to bypass WKWebView byte-range request bug with capacitor:// scheme
-      fetch('/assets/splash.mp4')
+      fetch('/assets/splash2.mp4')
         .then(res => res.blob())
         .then(blob => {
           if (!video) return;
