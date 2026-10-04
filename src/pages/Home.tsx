@@ -276,7 +276,7 @@ const Home: React.FC = () => {
           onStartTour={handleStartTour}
         />
 
-        <div className="p-6 relative z-10">
+        <div className={`p-6 relative ${tourStep >= 3 && tourStep <= 5 ? '' : 'z-10'}`}>
           <h1 className="text-3xl font-bold mb-2">Explora la</h1>
           <h1 className="text-3xl font-bold text-liquid-primary mb-8">Biodiversidad</h1>
           
