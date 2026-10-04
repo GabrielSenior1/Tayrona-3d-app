@@ -288,6 +288,14 @@ const ModelDetail: React.FC = () => {
   }
 
   const [modelText, setModelText] = useState("");
+  const [hasSpoken, setHasSpoken] = useState(false);
+
+  useEffect(() => {
+    if (isDownloaded && !hasSpoken && model) {
+      setHasSpoken(true);
+      setModelText((guiones.modelos as any)[model.id] || guiones.modelos.default);
+    }
+  }, [isDownloaded, hasSpoken, model]);
 
   return (
     <IonPage>
@@ -466,7 +474,17 @@ const ModelDetail: React.FC = () => {
             ) : null}
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div 
+            style={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              gap: 16,
+              transition: 'all 0.3s ease',
+              filter: modelText ? 'blur(4px)' : 'none',
+              opacity: modelText ? 0.4 : 1,
+              pointerEvents: modelText ? 'none' : 'auto'
+            }}
+          >
             <div className="glass-panel" style={{ borderRadius: 16, padding: 20 }}>
               <h3 style={{ fontSize: 17, fontWeight: 'bold', color: '#69f0ae', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span>📖</span> ¿Quién es?
