@@ -276,6 +276,8 @@ const Home: React.FC = () => {
               const isActive = (tourStep === 3 && cat.id === 'Mar') || 
                                (tourStep === 4 && cat.id === 'Mangle') || 
                                (tourStep === 5 && cat.id === 'Terrestre');
+              const isTourInProgress = tourStep >= 3 && tourStep <= 5;
+              const isDimmed = isTourInProgress && !isActive;
               
               return (
                 <div 
@@ -284,6 +286,10 @@ const Home: React.FC = () => {
                   className={`glass-card p-5 relative overflow-hidden active:scale-95 transition-all duration-300 ${
                     isActive ? 'spotlight-active' : 'border border-[rgba(255,255,255,0.2)]'
                   }`}
+                  style={{
+                    opacity: isDimmed ? 0.3 : 1,
+                    filter: isDimmed ? 'blur(1px)' : 'none',
+                  }}
                 >
                   <div className={`absolute -right-6 -top-6 w-24 h-24 rounded-full bg-gradient-to-br ${cat.color} opacity-20 blur-xl`}></div>
                   
