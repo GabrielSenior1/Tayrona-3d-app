@@ -287,6 +287,8 @@ const ModelDetail: React.FC = () => {
     );
   }
 
+  const [modelText, setModelText] = useState((guiones.modelos as any)[model.id] || guiones.modelos.default);
+
   return (
     <IonPage>
       <IonHeader className="ion-no-border">
@@ -298,7 +300,12 @@ const ModelDetail: React.FC = () => {
         </IonToolbar>
       </IonHeader>
       <IonContent style={{ '--background': '#0a1628' } as any} fullscreen>
-        <AvatarAsistente textoGuion={(guiones.modelos as any)[model.id] || guiones.modelos.default} />
+        <AvatarAsistente 
+          textoGuion={modelText} 
+          audioUrl={`/assets/audio/simi/simi_${model.id}.mp3.mp3`}
+          onSpeakEnd={() => setModelText("")}
+          onSkip={() => setModelText("")}
+        />
         <div style={{ padding: 16 }}>
           {/* 3D Viewer Card */}
           <div className="glass-card" style={{ 

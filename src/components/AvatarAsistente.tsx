@@ -25,9 +25,16 @@ const AvatarAsistente: React.FC<AvatarProps> = ({
   const [isVisible, setIsVisible] = useState(true);
   const [showMenu, setShowMenu] = useState(false);
   
+  // Estado interno para cuando habla desde el menú sin recibir props del padre
+  const [internalText, setInternalText] = useState("");
+  const [internalAudio, setInternalAudio] = useState("");
+  
   const objectRef = useRef<HTMLObjectElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const currentSpeakId = useRef(0);
+
+  const activeText = textoGuion || internalText;
+  const activeAudio = textoGuion ? audioUrl : internalAudio;
 
   useEffect(() => {
     const checkPreferences = async () => {
@@ -91,7 +98,7 @@ const AvatarAsistente: React.FC<AvatarProps> = ({
         if (currentSpeakId.current === thisSpeakId) {
           setIsSpeaking(false);
           toggleMouthAnimation(false);
-          if (onSpeakEnd) onSpeakEnd();
+          handleSpeakEnd();
         }
       };
       
@@ -128,39 +135,57 @@ const AvatarAsistente: React.FC<AvatarProps> = ({
       if (currentSpeakId.current === thisSpeakId) {
         setIsSpeaking(false);
         toggleMouthAnimation(false);
-        if (onSpeakEnd) onSpeakEnd();
+        handleSpeakEnd();
       }
     }
   };
 
-  // Reacciona a cambios en el guion
+  const handleSpeakEnd = () => {
+    if (internalText) {
+      setInternalText("");
+      setInternalAudio("");
+    } else if (onSpeakEnd) {
+      onSpeakEnd();
+    }
+  };
+
+  // Reacciona a cambios en el guion del padre o interno
   useEffect(() => {
-    if (textoGuion && textoGuion.trim() !== '') {
+    if (activeText && activeText.trim() !== '') {
       setShowMenu(false);
-      hablar(textoGuion, audioUrl);
+      hablar(activeText, activeAudio);
     } else {
       detenerAudio();
     }
     return () => {
       detenerAudio();
     };
-  }, [textoGuion, audioUrl, pose]);
+  }, [activeText, activeAudio, pose]);
 
   const handleContainerClick = (e: React.MouseEvent) => {
     e.stopPropagation(); 
-    if (textoGuion && textoGuion.trim() !== '') {
-      // Avanza el tour
-      if (onSpeakEnd) {
-        detenerAudio(); // Detiene el audio actual si tocan para avanzar
-        onSpeakEnd();
-      }
+    if (activeText && activeText.trim() !== '') {
+      detenerAudio();
+      handleSpeakEnd();
     } else {
-      // Muestra el menú
       setShowMenu(!showMenu);
     }
   };
 
-  const isTourActive = !!(textoGuion && textoGuion.trim() !== '');
+  const handleSkip = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    detenerAudio();
+    if (internalText) {
+      setInternalText("");
+      setInternalAudio("");
+    } else if (onSkip) {
+      onSkip();
+    } else {
+      handleSpeakEnd();
+    }
+  };
+
+  const isTourActive = !!(activeText && activeText.trim() !== '');
 
   if (!isVisible) return null;
 
@@ -181,18 +206,12 @@ const AvatarAsistente: React.FC<AvatarProps> = ({
             </div>
             <div className="rpg-dialog" onClick={handleContainerClick}>
               <div className="rpg-name-badge">SIMI • Guía Tayrona</div>
-              <div className="rpg-text">{textoGuion}</div>
+              <div className="rpg-text">{activeText}</div>
               <div className="rpg-actions">
                 <div className="rpg-continue">Toca para continuar ▾</div>
-                {onSkip && (
-                  <button className="rpg-skip" onClick={(e) => { 
-                    e.stopPropagation(); 
-                    detenerAudio();
-                    onSkip(); 
-                  }}>
-                    ✕ Omitir
-                  </button>
-                )}
+                <button className="rpg-skip" onClick={handleSkip}>
+                  ✕ Omitir
+                </button>
               </div>
             </div>
           </div>
@@ -213,9 +232,10 @@ const AvatarAsistente: React.FC<AvatarProps> = ({
               <div className="menu-item" onClick={(e) => { 
                 e.stopPropagation(); 
                 setShowMenu(false); 
-                hablar("¿Sabías que el pez loro tritura los corales con su pico y produce arena blanca? ¡Gran parte de las playas caribeñas son en realidad sus desechos!", "/assets/audio/simi/simi_pez_loro.mp3.mp3"); 
+                setInternalAudio("/assets/audio/simi/simi_she.mp3");
+                setInternalText("Aunque también hago parte del Semillero de investigación en modelado e impresión 3D, soy miembro activa de la Asociación de Estudiantes de Licenciatura en Tecnología de la Universidad del Magdalena, más conocida como ALT+TEND."); 
               }}>
-                💡 Dato curioso marino
+                💡 SIMI
               </div>
               <div className="menu-item" onClick={(e) => { 
                 e.stopPropagation(); 
