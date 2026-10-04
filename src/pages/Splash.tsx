@@ -38,6 +38,9 @@ const Splash: React.FC = () => {
         setIsPlaying(true);
         clearTimeout(playCheck); // Stop fallback if it actually plays
         
+        // Cortar el video exactamente a los 10 segundos para evitar el fondo oscuro del final
+        setTimeout(goToHome, 10000);
+        
         // Verify the video is actually progressing (not stuck)
         progressCheck = setInterval(() => {
           lastTime = video.currentTime;
@@ -120,7 +123,7 @@ const Splash: React.FC = () => {
               style={{ 
                 width: '100%', 
                 height: '100%', 
-                objectFit: 'cover',
+                objectFit: 'contain',
                 pointerEvents: 'none',
                 opacity: isPlaying ? 1 : 0,
                 transition: 'opacity 0.2s ease',
