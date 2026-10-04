@@ -287,7 +287,7 @@ const ModelDetail: React.FC = () => {
     );
   }
 
-  const [modelText, setModelText] = useState((guiones.modelos as any)[model.id] || guiones.modelos.default);
+  const [modelText, setModelText] = useState("");
 
   return (
     <IonPage>
@@ -297,6 +297,26 @@ const ModelDetail: React.FC = () => {
             <IonBackButton defaultHref="/home" color="light" text="" />
           </IonButtons>
           <IonTitle className="text-liquid-light">{model.title}</IonTitle>
+          <IonButtons slot="end">
+            <button 
+              onClick={() => setModelText((guiones.modelos as any)[model.id] || guiones.modelos.default)}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                padding: '4px 12px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer'
+              }}
+            >
+              <img 
+                src="/assets/icons/icon-simi.webp" 
+                alt="SIMI" 
+                style={{ width: 36, height: 36, borderRadius: '50%', border: '2px solid #69f0ae', boxShadow: '0 0 10px rgba(105, 240, 174, 0.5)' }} 
+              />
+            </button>
+          </IonButtons>
         </IonToolbar>
       </IonHeader>
       <IonContent style={{ '--background': '#0a1628' } as any} fullscreen>
@@ -305,6 +325,8 @@ const ModelDetail: React.FC = () => {
           audioUrl={`/assets/audio/simi/simi_${model.id}.mp3.mp3`}
           onSpeakEnd={() => setModelText("")}
           onSkip={() => setModelText("")}
+          noOverlay={true}
+          hiddenIfInactive={true}
         />
         <div style={{ padding: 16 }}>
           {/* 3D Viewer Card */}

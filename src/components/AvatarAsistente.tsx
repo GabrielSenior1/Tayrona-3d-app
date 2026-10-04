@@ -11,6 +11,8 @@ interface AvatarProps {
   onSpeakEnd?: () => void;
   onSkip?: () => void;
   onStartTour?: () => void;
+  noOverlay?: boolean;
+  hiddenIfInactive?: boolean;
 }
 
 const AvatarAsistente: React.FC<AvatarProps> = ({ 
@@ -19,7 +21,9 @@ const AvatarAsistente: React.FC<AvatarProps> = ({
   pose = 'a', 
   onSpeakEnd,
   onSkip,
-  onStartTour
+  onStartTour,
+  noOverlay = false,
+  hiddenIfInactive = false
 }) => {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
@@ -192,7 +196,7 @@ const AvatarAsistente: React.FC<AvatarProps> = ({
   return (
     <>
       {isTourActive ? (
-        <div className="avatar-overlay" onClick={handleContainerClick}>
+        <div className={`avatar-overlay ${noOverlay ? 'no-overlay' : ''}`} onClick={handleContainerClick}>
           <div className="rpg-container" onClick={(e) => e.stopPropagation()}>
             <div className="avatar-container">
               <object 
@@ -204,21 +208,19 @@ const AvatarAsistente: React.FC<AvatarProps> = ({
                 onLoad={() => toggleMouthAnimation(isSpeaking)}
               />
             </div>
-            <div className="rpg-dialog" onClick={handleContainerClick}>
+            <div className="rpg-dialog" style={{ cursor: 'pointer' }} onClick={handleContainerClick}>
               <div className="rpg-name-badge">SIMI • Guía Tayrona</div>
               <div className="rpg-text">{activeText}</div>
-              <div className="rpg-actions">
+              <div className="rpg-actions" style={{ justifyContent: 'flex-end' }}>
                 <div className="rpg-continue">Toca para continuar ▾</div>
-                <button className="rpg-skip" onClick={handleSkip}>
-                  ✕ Omitir
-                </button>
               </div>
             </div>
           </div>
         </div>
       ) : (
-        <div className="avatar-wrapper">
-          {showMenu && (
+        !hiddenIfInactive && (
+          <div className="avatar-wrapper">
+            {showMenu && (
             <div className="interactive-menu">
               {onStartTour && (
                 <div className="menu-item" onClick={(e) => { 
@@ -259,6 +261,7 @@ const AvatarAsistente: React.FC<AvatarProps> = ({
             />
           </div>
         </div>
+        )
       )}
     </>
   );
