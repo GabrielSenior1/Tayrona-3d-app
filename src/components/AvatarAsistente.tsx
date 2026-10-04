@@ -232,7 +232,7 @@ const AvatarAsistente: React.FC<AvatarProps> = ({
               <div className="menu-item" onClick={(e) => { 
                 e.stopPropagation(); 
                 setShowMenu(false); 
-                setInternalAudio("/assets/audio/simi/simi_she.mp3");
+                setInternalAudio("/assets/audio/simi/simi_she.mp3.mp3");
                 setInternalText("Aunque también hago parte del Semillero de investigación en modelado e impresión 3D, soy miembro activa de la Asociación de Estudiantes de Licenciatura en Tecnología de la Universidad del Magdalena, más conocida como ALT+TEND."); 
               }}>
                 💡 SIMI
