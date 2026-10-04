@@ -6,18 +6,27 @@ import './AvatarAsistente.css';
 
 interface AvatarProps {
   textoGuion?: string;
+  audioUrl?: string;
+  pose?: 'a' | 'b' | 'c';
   onSpeakEnd?: () => void;
-  onAvatarClick?: () => void;
+  onSkip?: () => void;
+  onStartTour?: () => void;
 }
 
-const AvatarAsistente: React.FC<AvatarProps> = ({ textoGuion, onSpeakEnd, onAvatarClick }) => {
+const AvatarAsistente: React.FC<AvatarProps> = ({ 
+  textoGuion, 
+  audioUrl,
+  pose = 'a', 
+  onSpeakEnd,
+  onSkip,
+  onStartTour
+}) => {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
-  const [showBubble, setShowBubble] = useState(false);
-  const [currentText, setCurrentText] = useState("");
+  const [showMenu, setShowMenu] = useState(false);
+  
   const objectRef = useRef<HTMLObjectElement>(null);
-
-  // Variable para evitar que una lectura anterior dispare onSpeakEnd cuando se canceló
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const currentSpeakId = useRef(0);
 
   useEffect(() => {
@@ -27,6 +36,12 @@ const AvatarAsistente: React.FC<AvatarProps> = ({ textoGuion, onSpeakEnd, onAvat
     };
     checkPreferences();
   }, []);
+
+  const getAvatarSvg = () => {
+    if (pose === 'b') return "/assets/avatar/avatar b.svg";
+    if (pose === 'c') return "/assets/avatar/avatar c.svg";
+    return "/assets/avatar/avatar.svg";
+  };
 
   const toggleMouthAnimation = (speaking: boolean) => {
     try {
@@ -43,100 +58,189 @@ const AvatarAsistente: React.FC<AvatarProps> = ({ textoGuion, onSpeakEnd, onAvat
     }
   };
 
-  const hablar = async (textToSpeak: string) => {
+  const detenerAudio = async () => {
+    currentSpeakId.current += 1; 
+    
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      audioRef.current = null;
+    }
+    await TextToSpeech.stop().catch(() => {});
+    setIsSpeaking(false);
+    toggleMouthAnimation(false);
+  };
+
+  const hablar = async (textToSpeak: string, audioFile?: string) => {
     if (!isVisible || !textToSpeak) return;
+    
+    await detenerAudio();
     
     currentSpeakId.current += 1;
     const thisSpeakId = currentSpeakId.current;
-    
-    // Si ya estaba hablando, detenerlo primero
-    await TextToSpeech.stop().catch(() => {});
 
-    setShowBubble(true);
-    setCurrentText(textToSpeak);
+    setIsSpeaking(true);
+    toggleMouthAnimation(true);
+    await Haptics.impact({ style: ImpactStyle.Light }).catch(()=>{});
 
+    if (audioFile) {
+      const audio = new Audio(audioFile);
+      audioRef.current = audio;
+      
+      audio.onended = () => {
+        if (currentSpeakId.current === thisSpeakId) {
+          setIsSpeaking(false);
+          toggleMouthAnimation(false);
+          if (onSpeakEnd) onSpeakEnd();
+        }
+      };
+      
+      audio.onerror = async () => {
+        console.warn(`Audio no encontrado: ${audioFile}. Usando TTS.`);
+        audioRef.current = null;
+        await playTTS(textToSpeak, thisSpeakId);
+      };
+
+      audio.play().catch(async (e) => {
+        console.warn("Error al reproducir audio, usando TTS:", e);
+        audioRef.current = null;
+        await playTTS(textToSpeak, thisSpeakId);
+      });
+
+    } else {
+      await playTTS(textToSpeak, thisSpeakId);
+    }
+  };
+
+  const playTTS = async (text: string, thisSpeakId: number) => {
     try {
-      setIsSpeaking(true);
-      toggleMouthAnimation(true);
-      await Haptics.impact({ style: ImpactStyle.Light });
-
       await TextToSpeech.speak({
-        text: textToSpeak,
+        text: text,
         lang: 'es-CO',
         rate: 1.05,
         pitch: 1.1,
         volume: 1.0,
         category: 'ambient',
       });
-
-      await Haptics.impact({ style: ImpactStyle.Light });
     } catch (error) {
       console.error("Error en TTS:", error);
     } finally {
       if (currentSpeakId.current === thisSpeakId) {
         setIsSpeaking(false);
         toggleMouthAnimation(false);
-        setTimeout(() => setShowBubble(false), 2000);
         if (onSpeakEnd) onSpeakEnd();
       }
     }
   };
 
-  const detener = async () => {
-    currentSpeakId.current += 1; // Cancela cualquier callback pendiente
-    await TextToSpeech.stop().catch(() => {});
-    setIsSpeaking(false);
-    toggleMouthAnimation(false);
-    setShowBubble(false);
-  };
-
+  // Reacciona a cambios en el guion
   useEffect(() => {
     if (textoGuion && textoGuion.trim() !== '') {
-      hablar(textoGuion);
+      setShowMenu(false);
+      hablar(textoGuion, audioUrl);
     } else {
-      detener();
+      detenerAudio();
     }
     return () => {
-      detener();
+      detenerAudio();
     };
-  }, [textoGuion]);
+  }, [textoGuion, audioUrl, pose]);
 
-  const handleClick = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Evita que el click se propague y cancele el tour globalmente
-    if (onAvatarClick) {
-      onAvatarClick();
-    } else if (!textoGuion) {
-      // Comportamiento por defecto si no hay tour script
-      hablar("Hola, soy SIMI.");
+  const handleContainerClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); 
+    if (textoGuion && textoGuion.trim() !== '') {
+      // Avanza el tour
+      if (onSpeakEnd) {
+        detenerAudio(); // Detiene el audio actual si tocan para avanzar
+        onSpeakEnd();
+      }
+    } else {
+      // Muestra el menú
+      setShowMenu(!showMenu);
     }
   };
+
+  const isTourActive = !!(textoGuion && textoGuion.trim() !== '');
 
   if (!isVisible) return null;
 
   return (
-    <div className="avatar-wrapper">
-      {showBubble && currentText && (
-        <div className="pixel-bubble">
-          {currentText}
+    <>
+      {isTourActive ? (
+        <div className="avatar-overlay" onClick={handleContainerClick}>
+          <div className="rpg-container" onClick={(e) => e.stopPropagation()}>
+            <div className="avatar-container">
+              <object 
+                ref={objectRef}
+                data={getAvatarSvg()} 
+                type="image/svg+xml" 
+                className="avatar-object"
+                aria-hidden="true"
+                onLoad={() => toggleMouthAnimation(isSpeaking)}
+              />
+            </div>
+            <div className="rpg-dialog" onClick={handleContainerClick}>
+              <div className="rpg-name-badge">SIMI • Guía Tayrona</div>
+              <div className="rpg-text">{textoGuion}</div>
+              <div className="rpg-actions">
+                <div className="rpg-continue">Toca para continuar ▾</div>
+                {onSkip && (
+                  <button className="rpg-skip" onClick={(e) => { 
+                    e.stopPropagation(); 
+                    detenerAudio();
+                    onSkip(); 
+                  }}>
+                    ✕ Omitir
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="avatar-wrapper">
+          {showMenu && (
+            <div className="interactive-menu">
+              {onStartTour && (
+                <div className="menu-item" onClick={(e) => { 
+                  e.stopPropagation(); 
+                  setShowMenu(false); 
+                  onStartTour(); 
+                }}>
+                  🎓 Hacer recorrido guiado
+                </div>
+              )}
+              <div className="menu-item" onClick={(e) => { 
+                e.stopPropagation(); 
+                setShowMenu(false); 
+                hablar("¿Sabías que el pez loro tritura los corales con su pico y produce arena blanca? ¡Gran parte de las playas caribeñas son en realidad sus desechos!", "/assets/audio/simi/simi_pez_loro.mp3.mp3"); 
+              }}>
+                💡 Dato curioso marino
+              </div>
+              <div className="menu-item" onClick={(e) => { 
+                e.stopPropagation(); 
+                setShowMenu(false); 
+              }}>
+                ❌ Cerrar menú
+              </div>
+            </div>
+          )}
+          <div 
+            className="avatar-container interactive-mode" 
+            onClick={handleContainerClick}
+          >
+            <object 
+              ref={objectRef}
+              data={getAvatarSvg()} 
+              type="image/svg+xml" 
+              className="avatar-object"
+              aria-hidden="true"
+              onLoad={() => toggleMouthAnimation(isSpeaking)}
+            />
+          </div>
         </div>
       )}
-      <div 
-        className="avatar-container" 
-        onClick={handleClick}
-        role="button"
-      >
-        <object 
-          ref={objectRef}
-          data="/assets/avatar/avatar.svg" 
-          type="image/svg+xml" 
-          className="avatar-object"
-          aria-hidden="true"
-          onLoad={() => toggleMouthAnimation(isSpeaking)}
-        >
-          Tu navegador no soporta SVG
-        </object>
-      </div>
-    </div>
+    </>
   );
 };
 

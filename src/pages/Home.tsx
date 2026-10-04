@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { IonPage, IonContent, IonHeader, IonToolbar, IonTitle, IonButtons, IonButton } from '@ionic/react';
+import { IonPage, IonContent, IonHeader, IonToolbar, IonTitle, IonButtons } from '@ionic/react';
 import { useHistory } from 'react-router-dom';
 import { modelsDatabase } from '../data/modelsData';
 import { DownloadManager } from '../services/DownloadManager';
 import { Capacitor } from '@capacitor/core';
 import AvatarAsistente from '../components/AvatarAsistente';
-import guiones from '../data/guiones.json';
 
 const Home: React.FC = () => {
   const history = useHistory();
@@ -16,34 +15,57 @@ const Home: React.FC = () => {
   const [totalModels] = useState(modelsDatabase.length);
   const [tourStep, setTourStep] = useState(0);
 
-  const tourTexts = [
-    "",
-    "Hola, soy SIMI y hago parte del semillero de investigación de modelado e impresión 3D de la Universidad del Magdalena.",
-    "Aquí te muestro las opciones que tenemos para explorar la biodiversidad del Parque Tayrona en 3D.",
-    "Desde la vida marina, con peces y reptiles acuáticos...",
-    "Pasando por los manglares, la sala cuna del océano...",
-    "Y la vida terrestre, con habitantes de la selva.",
-    "Para poder ver los modelos, primero tienes que descargarlos presionando este botón superior. ¡Empecemos!"
+  const tourSteps = [
+    { text: "", audioUrl: "", pose: "a" as const },
+    { 
+      text: "Hola, soy SIMI y hago parte del semillero de investigación de modelado e impresión 3D de la Universidad del Magdalena.", 
+      audioUrl: "/assets/audio/simi/simi_tour_01.mp3.mp3", 
+      pose: "a" as const 
+    },
+    { 
+      text: "Aquí te muestro las opciones que tenemos para explorar la biodiversidad del Parque Tayrona en 3D.", 
+      audioUrl: "/assets/audio/simi/simi_tour_02.mp3.mp3", 
+      pose: "b" as const 
+    },
+    { 
+      text: "Desde la vida marina, con peces y reptiles acuáticos...", 
+      audioUrl: "/assets/audio/simi/simi_tour_03.mp3.mp3", 
+      pose: "b" as const 
+    },
+    { 
+      text: "Pasando por los manglares, la sala cuna del océano...", 
+      audioUrl: "/assets/audio/simi/simi_tour_04.mp3.mp3", 
+      pose: "b" as const 
+    },
+    { 
+      text: "Y la vida terrestre, con habitantes de la selva.", 
+      audioUrl: "/assets/audio/simi/simi_tour_05.mp3.mp3", 
+      pose: "b" as const 
+    },
+    { 
+      text: "Para poder ver los modelos, primero tienes que descargarlos presionando este botón superior. ¡Empecemos!", 
+      audioUrl: "/assets/audio/simi/simi_tour_06.mp3.mp3", 
+      pose: "c" as const 
+    }
   ];
 
-  const handleAvatarClick = () => {
-    if (tourStep === 0) setTourStep(1);
-    else setTourStep(0);
+  const handleStartTour = () => {
+    setTourStep(1);
   };
 
   const handleSpeakEnd = () => {
-    if (tourStep > 0 && tourStep < tourTexts.length - 1) {
+    if (tourStep > 0 && tourStep < tourSteps.length - 1) {
       setTourStep(prev => prev + 1);
-    } else if (tourStep === tourTexts.length - 1) {
-      setTimeout(() => setTourStep(0), 4000);
+    } else if (tourStep === tourSteps.length - 1) {
+      // Final del tour
+      setTimeout(() => setTourStep(0), 1000);
     }
   };
 
-  const stopTour = () => {
-    if (tourStep !== 0) setTourStep(0);
+  const handleSkipTour = () => {
+    setTourStep(0);
   };
 
-  // Check how many models are already downloaded
   useEffect(() => {
     if (Capacitor.isNativePlatform()) {
       checkDownloadedModels();
@@ -68,7 +90,6 @@ const Home: React.FC = () => {
     let completed = 0;
 
     for (const model of modelsDatabase) {
-      // Skip if already downloaded
       const exists = await DownloadManager.isModelDownloaded(model.androidModel);
       if (exists) {
         completed++;
@@ -80,7 +101,6 @@ const Home: React.FC = () => {
 
       try {
         await DownloadManager.downloadModel(model.androidModel);
-        // Also download iOS model if on iOS
         if (platform === 'ios' && model.iosModel) {
           await DownloadManager.downloadIOSModel(model.iosModel).catch(() => {});
         }
@@ -95,7 +115,6 @@ const Home: React.FC = () => {
     setDownloadedCount(totalModels);
     setIsDownloadingAll(false);
 
-    // Auto close after 1.5s
     setTimeout(() => setShowDownloadModal(false), 1500);
   };
 
@@ -104,6 +123,8 @@ const Home: React.FC = () => {
     { id: 'Mangle', title: 'Manglares', icon: '🌿', desc: 'La sala cuna del océano', color: 'from-green-500 to-emerald-400' },
     { id: 'Terrestre', title: 'Vida Terrestre', icon: '🐆', desc: 'Habitantes de la selva y costa', color: 'from-amber-500 to-orange-400' },
   ];
+
+  const currentStep = tourSteps[tourStep] || tourSteps[0];
 
   return (
     <IonPage>
@@ -117,7 +138,7 @@ const Home: React.FC = () => {
                   e.stopPropagation();
                   showDownloadModal ? setShowDownloadModal(false) : setShowDownloadModal(true);
                 }}
-                className={tourStep === 6 ? "animate-pulse" : ""}
+                className={tourStep === 6 ? "spotlight-active" : ""}
                 style={{
                   background: tourStep === 6 ? 'rgba(105, 240, 174, 0.15)' : 'transparent',
                   border: tourStep === 6 ? '2px solid #69f0ae' : 'none',
@@ -128,7 +149,6 @@ const Home: React.FC = () => {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  boxShadow: tourStep === 6 ? '0 0 25px rgba(105, 240, 174, 0.8)' : 'none',
                   transition: 'all 0.3s ease'
                 }}
               >
@@ -139,7 +159,6 @@ const Home: React.FC = () => {
         </IonToolbar>
       </IonHeader>
       
-      {/* Download all modal/dropdown */}
       {showDownloadModal && (
         <div style={{
           position: 'fixed',
@@ -238,44 +257,48 @@ const Home: React.FC = () => {
           </div>
         )}
 
-      <IonContent fullscreen onClick={stopTour}>
+      <IonContent fullscreen>
         <AvatarAsistente 
-          textoGuion={tourTexts[tourStep]} 
+          textoGuion={currentStep.text} 
+          audioUrl={currentStep.audioUrl}
+          pose={currentStep.pose}
           onSpeakEnd={handleSpeakEnd} 
-          onAvatarClick={handleAvatarClick} 
+          onSkip={handleSkipTour}
+          onStartTour={handleStartTour}
         />
 
-        <div className="p-6">
+        <div className="p-6 relative z-10">
           <h1 className="text-3xl font-bold mb-2">Explora la</h1>
           <h1 className="text-3xl font-bold text-liquid-primary mb-8">Biodiversidad</h1>
           
           <div className="flex flex-col gap-6">
-            {categories.map(cat => (
-              <div 
-                key={cat.id} 
-                onClick={(e) => { e.stopPropagation(); history.push(`/category/${cat.id}`); }}
-                className={`glass-card p-5 relative overflow-hidden active:scale-95 transition-all duration-300 ${
-                  (tourStep === 3 && cat.id === 'Mar') || 
-                  (tourStep === 4 && cat.id === 'Mangle') || 
-                  (tourStep === 5 && cat.id === 'Terrestre') 
-                    ? 'border-2 border-[#69f0ae] shadow-[0_0_25px_rgba(105,240,174,0.6)] animate-pulse' 
-                    : 'border border-[rgba(255,255,255,0.2)]'
-                }`}
-              >
-                {/* Decorative blob */}
-                <div className={`absolute -right-6 -top-6 w-24 h-24 rounded-full bg-gradient-to-br ${cat.color} opacity-20 blur-xl`}></div>
-                
-                <div className="flex items-center gap-4">
-                  <div className={`w-14 h-14 flex items-center justify-center text-3xl rounded-2xl bg-gradient-to-br ${cat.color} bg-opacity-20 shadow-lg`}>
-                    {cat.icon}
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-bold text-white">{cat.title}</h2>
-                    <p className="text-sm text-liquid-muted mt-1">{cat.desc}</p>
+            {categories.map(cat => {
+              const isActive = (tourStep === 3 && cat.id === 'Mar') || 
+                               (tourStep === 4 && cat.id === 'Mangle') || 
+                               (tourStep === 5 && cat.id === 'Terrestre');
+              
+              return (
+                <div 
+                  key={cat.id} 
+                  onClick={(e) => { e.stopPropagation(); history.push(`/category/${cat.id}`); }}
+                  className={`glass-card p-5 relative overflow-hidden active:scale-95 transition-all duration-300 ${
+                    isActive ? 'spotlight-active' : 'border border-[rgba(255,255,255,0.2)]'
+                  }`}
+                >
+                  <div className={`absolute -right-6 -top-6 w-24 h-24 rounded-full bg-gradient-to-br ${cat.color} opacity-20 blur-xl`}></div>
+                  
+                  <div className="flex items-center gap-4 relative z-10">
+                    <div className={`w-14 h-14 flex items-center justify-center text-3xl rounded-2xl bg-gradient-to-br ${cat.color} bg-opacity-20 shadow-lg`}>
+                      {cat.icon}
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-bold text-white">{cat.title}</h2>
+                      <p className="text-sm text-liquid-muted mt-1">{cat.desc}</p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </IonContent>
