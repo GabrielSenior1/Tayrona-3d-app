@@ -219,8 +219,7 @@ const AvatarAsistente: React.FC<AvatarProps> = ({
                 </span>
               </div>
               <div className="rpg-text">{activeText}</div>
-              <div className="rpg-actions" style={{ justifyContent: 'space-between' }}>
-                <div className="rpg-skip" onClick={(e) => { e.stopPropagation(); handleSkip(e); }} style={{ color: '#ff5252' }}>Saltar</div>
+              <div className="rpg-actions" style={{ justifyContent: 'flex-end' }}>
                 <div className="rpg-continue">Toca para continuar ▾</div>
               </div>
             </div>

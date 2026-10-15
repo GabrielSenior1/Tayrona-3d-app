@@ -11,6 +11,32 @@ import guiones from '../data/guiones.json';
 
 const ARLauncher = registerPlugin<any>('ARLauncher');
 
+const REAL_DIMENSIONS: Record<string, string> = {
+  barracuda: "1.5 – 2.0 m de longitud",
+  cangrejo_fantasma: "5 – 8 cm (cuerpo) / 15 cm con patas",
+  damisela_azul: "8 – 13 cm de longitud",
+  langosta: "40 – 60 cm (hasta 1 m con antenas)",
+  mero: "2.0 – 2.5 m (hasta 360 kg)",
+  pargo: "60 – 100 cm de longitud",
+  pez_cirujano: "20 – 38 cm de longitud",
+  pez_cofre: "30 – 45 cm de longitud",
+  pez_globo: "20 – 30 cm de longitud",
+  pez_leon: "30 – 38 cm de longitud",
+  pez_loro: "40 – 60 cm (hasta 90 cm)",
+  pez_mariposa: "10 – 15 cm de longitud",
+  pez_trompeta: "50 – 80 cm de longitud",
+  pulpo: "80 – 100 cm (brazos extendidos)",
+  sargento_mayor: "15 – 22 cm de longitud",
+  tetra_colombiano: "5 – 7 cm de longitud",
+  tortuga_carey: "70 – 90 cm de caparazón (hasta 1 m)",
+  mangle_blanco: "4 – 15 m de altura",
+  mangle_boton: "3 – 8 m de altura",
+  mangle_negro: "10 – 20 m de altura",
+  mangle_rojo: "15 – 25 m de altura",
+  jaguar: "1.6 – 2.4 m (cuerpo y cola) / hasta 100 kg",
+  sapitos_arlequin: "3 – 5 cm de longitud"
+};
+
 const ModelDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const model = modelsDatabase.find(m => m.id === id);
@@ -31,10 +57,25 @@ const ModelDetail: React.FC = () => {
   const vrEye2Ref = useRef<any>(null);
   const vrAngleRef = useRef<number>(0);
   
-  // Model controls
+  // Model controls & dimensions
   const [modelScale, setModelScale] = useState('1 1 1');
   const [isLocked, setIsLocked] = useState(false);
+  const [isRealScale, setIsRealScale] = useState(false);
   const [isPreparingAR, setIsPreparingAR] = useState(false);
+
+  const handleCenterModel = () => {
+    const viewer = document.getElementById('main-viewer') as any;
+    if (viewer) {
+      try {
+        viewer.cameraTarget = 'auto auto auto';
+        viewer.cameraOrbit = '0deg 75deg 105%';
+        viewer.fieldOfView = 'auto';
+        if (typeof viewer.jumpCameraToGoal === 'function') {
+          viewer.jumpCameraToGoal();
+        }
+      } catch (_) {}
+    }
+  };
 
   // Assistant states
   const [modelText, setModelText] = useState("");
@@ -342,7 +383,7 @@ const ModelDetail: React.FC = () => {
   return (
     <IonPage>
       <IonHeader className="ion-no-border">
-        <IonToolbar style={{ '--background': '#0a1628' } as any}>
+        <IonToolbar style={{ '--background': '#0a1628', borderBottom: '1px solid rgba(255, 255, 255, 0.08)' } as any}>
           <IonButtons slot="start">
             <IonBackButton defaultHref="/home" color="light" text="" />
           </IonButtons>
@@ -370,7 +411,7 @@ const ModelDetail: React.FC = () => {
         </IonToolbar>
       </IonHeader>
 
-      <IonContent style={{ '--background': '#0a1628' } as any} fullscreen>
+      <IonContent style={{ '--background': '#0a1628' } as any}>
         <AvatarAsistente 
           textoGuion={modelText} 
           audioUrl={`/assets/audio/simi/simi_${model.id}.mp3.mp3`}
@@ -458,6 +499,36 @@ const ModelDetail: React.FC = () => {
                   style={{ width: '100%', height: '100%', minHeight: 300, display: isVRMode ? 'none' : 'block' }}
                 />
 
+                {/* Floating Real Dimensions Banner */}
+                {isRealScale && (
+                  <div style={{
+                    position: 'absolute',
+                    top: 12,
+                    right: 12,
+                    maxWidth: '60%',
+                    background: 'rgba(10, 22, 40, 0.94)',
+                    border: '1.5px solid #38bdf8',
+                    borderRadius: '12px',
+                    padding: '8px 12px',
+                    color: '#ffffff',
+                    zIndex: 20,
+                    boxShadow: '0 4px 16px rgba(0,0,0,0.6)',
+                    backdropFilter: 'blur(10px)',
+                    animation: 'fadeIn 0.25s ease'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#38bdf8', fontSize: '11px', fontWeight: 800, letterSpacing: '0.5px' }}>
+                      <span>📏</span>
+                      <span>MEDIDAS REALES:</span>
+                    </div>
+                    <div style={{ color: '#f1f5f9', fontSize: '12px', fontWeight: 700, marginTop: 2 }}>
+                      {model.realDimensions || REAL_DIMENSIONS[model.id] || "Escala 1:1 en hábitat natural"}
+                    </div>
+                    <div style={{ color: '#94a3b8', fontSize: '10px', marginTop: 3, lineHeight: 1.2 }}>
+                      Presiona <b>🌿 AR Nativo</b> abajo para proyectarlo en tu espacio en tamaño real.
+                    </div>
+                  </div>
+                )}
+
                 {/* Left Controls */}
                 <div style={{
                   position: 'absolute',
@@ -465,39 +536,105 @@ const ModelDetail: React.FC = () => {
                   left: 12,
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: 8,
-                  zIndex: 10
+                  gap: 6,
+                  zIndex: 20
                 }}>
+                  {/* Centrar */}
+                  <button 
+                    onClick={handleCenterModel}
+                    style={{
+                      background: 'rgba(15, 30, 55, 0.85)',
+                      color: '#69f0ae',
+                      border: '1px solid rgba(105, 240, 174, 0.3)',
+                      padding: '6px 10px',
+                      borderRadius: '10px',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      backdropFilter: 'blur(8px)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
+                    }}
+                  >
+                    <span>🎯</span>
+                    <span>Centrar</span>
+                  </button>
+
+                  {/* Simulación (Flex) */}
                   <button 
                     onClick={() => {
-                      const viewer = document.getElementById('main-viewer') as any;
-                      if (viewer && viewer.cameraTarget) {
-                        viewer.cameraTarget = 'auto auto auto';
-                        viewer.cameraOrbit = '0deg 75deg 105%';
-                      }
+                      setIsRealScale(false);
                       setModelScale('1 1 1');
                     }}
-                    style={{ background: 'rgba(105,240,174,0.8)', color: '#000', padding: '6px', borderRadius: '8px', fontSize: '10px', fontWeight: 'bold' }}
+                    style={{
+                      background: !isRealScale ? 'rgba(105, 240, 174, 0.25)' : 'rgba(15, 30, 55, 0.85)',
+                      color: !isRealScale ? '#69f0ae' : '#c8d6e5',
+                      border: !isRealScale ? '1.5px solid #69f0ae' : '1px solid rgba(255,255,255,0.15)',
+                      padding: '6px 10px',
+                      borderRadius: '10px',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      backdropFilter: 'blur(8px)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
+                    }}
                   >
-                    Centrar
+                    <span>📐</span>
+                    <span>Simulación</span>
                   </button>
+
+                  {/* Tamaño Real */}
                   <button 
-                    onClick={() => setModelScale('1 1 1')}
-                    style={{ background: 'rgba(255,255,255,0.8)', color: '#000', padding: '6px', borderRadius: '8px', fontSize: '10px', fontWeight: 'bold' }}
+                    onClick={() => {
+                      setIsRealScale(true);
+                      setModelScale('1 1 1');
+                    }}
+                    style={{
+                      background: isRealScale ? 'rgba(56, 189, 248, 0.25)' : 'rgba(15, 30, 55, 0.85)',
+                      color: isRealScale ? '#38bdf8' : '#c8d6e5',
+                      border: isRealScale ? '1.5px solid #38bdf8' : '1px solid rgba(255,255,255,0.15)',
+                      padding: '6px 10px',
+                      borderRadius: '10px',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      backdropFilter: 'blur(8px)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
+                    }}
                   >
-                    Tamaño Flex
+                    <span>📏</span>
+                    <span>Tamaño Real</span>
                   </button>
-                  <button 
-                    onClick={() => setModelScale('2 2 2')}
-                    style={{ background: 'rgba(255,255,255,0.8)', color: '#000', padding: '6px', borderRadius: '8px', fontSize: '10px', fontWeight: 'bold' }}
-                  >
-                    Tamaño Real
-                  </button>
+
+                  {/* Bloquear / Desbloquear */}
                   <button 
                     onClick={() => setIsLocked(!isLocked)}
-                    style={{ background: isLocked ? 'rgba(255,0,0,0.8)' : 'rgba(0,150,255,0.8)', color: '#fff', padding: '6px', borderRadius: '8px', fontSize: '10px', fontWeight: 'bold' }}
+                    style={{
+                      background: isLocked ? 'rgba(239, 68, 68, 0.25)' : 'rgba(15, 30, 55, 0.85)',
+                      color: isLocked ? '#f87171' : '#c8d6e5',
+                      border: isLocked ? '1.5px solid #ef4444' : '1px solid rgba(255,255,255,0.15)',
+                      padding: '6px 10px',
+                      borderRadius: '10px',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      backdropFilter: 'blur(8px)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
+                    }}
                   >
-                    {isLocked ? 'Desbloquear' : 'Bloquear'}
+                    <span>{isLocked ? '🔒' : '🔓'}</span>
+                    <span>{isLocked ? 'Fijado' : 'Libre'}</span>
                   </button>
                 </div>
 

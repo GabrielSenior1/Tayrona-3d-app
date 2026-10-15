@@ -19,7 +19,7 @@ const Category: React.FC = () => {
   return (
     <IonPage>
       <IonHeader className="ion-no-border">
-        <IonToolbar style={{ '--background': 'transparent' }}>
+        <IonToolbar style={{ '--background': '#0a1628', borderBottom: '1px solid rgba(255, 255, 255, 0.08)' } as any}>
           <IonButtons slot="start">
             <IonBackButton defaultHref="/home" color="light" text="" />
           </IonButtons>
@@ -27,7 +27,7 @@ const Category: React.FC = () => {
         </IonToolbar>
       </IonHeader>
       
-      <IonContent fullscreen>
+      <IonContent style={{ '--background': '#0a1628' } as any}>
         <div className="p-4 pb-12">
           <div className="grid grid-cols-2 gap-4">
             {models.map(model => (

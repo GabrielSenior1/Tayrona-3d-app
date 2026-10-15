@@ -9,6 +9,7 @@ export interface ModelData {
     location: string;
     androidModel: string;
     iosModel: string;
+    realDimensions?: string;
 }
 
 export const modelsDatabase: ModelData[] = [
