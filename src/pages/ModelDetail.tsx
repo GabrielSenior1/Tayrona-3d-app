@@ -1,5 +1,16 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { IonPage, IonContent, IonHeader, IonToolbar, IonButtons, IonBackButton, IonTitle } from '@ionic/react';
+import { 
+  IonPage, 
+  IonContent, 
+  IonHeader, 
+  IonToolbar, 
+  IonButtons, 
+  IonBackButton, 
+  IonTitle,
+  useIonViewDidEnter,
+  useIonViewWillLeave,
+  useIonViewDidLeave
+} from '@ionic/react';
 import { useParams } from 'react-router-dom';
 import { modelsDatabase } from '../data/modelsData';
 import { DownloadManager } from '../services/DownloadManager';
@@ -48,6 +59,22 @@ const ModelDetail: React.FC = () => {
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [downloadSpeedText, setDownloadSpeedText] = useState("");
   
+  // View activity state to manage memory and unmount WebGL when leaving page
+  const [isViewActive, setIsViewActive] = useState(true);
+
+  useIonViewDidEnter(() => {
+    setIsViewActive(true);
+  });
+
+  useIonViewWillLeave(() => {
+    setIsViewActive(false);
+    setModelText("");
+  });
+
+  useIonViewDidLeave(() => {
+    setIsViewActive(false);
+  });
+
   // VR states & refs for synchronized stereoscopic Cardboard view
   const [isVRMode, setIsVRMode] = useState(false);
   const [vrEye1Mounted, setVrEye1Mounted] = useState(false);
@@ -58,13 +85,14 @@ const ModelDetail: React.FC = () => {
   const vrAngleRef = useRef<number>(0);
   
   // Model controls & dimensions
+  const mainViewerRef = useRef<any>(null);
   const [modelScale, setModelScale] = useState('1 1 1');
   const [isLocked, setIsLocked] = useState(false);
   const [isRealScale, setIsRealScale] = useState(false);
   const [isPreparingAR, setIsPreparingAR] = useState(false);
 
   const handleCenterModel = () => {
-    const viewer = document.getElementById('main-viewer') as any;
+    const viewer = mainViewerRef.current || (document.getElementById('main-viewer') as any);
     if (viewer) {
       try {
         viewer.cameraTarget = 'auto auto auto';
@@ -120,35 +148,26 @@ const ModelDetail: React.FC = () => {
     }
   }, [isDownloaded, hasSpoken, model]);
 
-  // Handle VR Orientation
+  // Handle VR Orientation (only lock landscape when in VR mode)
   useEffect(() => {
-    if (Capacitor.isNativePlatform()) {
-      if (isVRMode) {
-        ScreenOrientation.lock({ orientation: 'landscape' }).catch(() => {});
-      } else {
-        ScreenOrientation.unlock().catch(() => {});
-      }
+    if (Capacitor.isNativePlatform() && isVRMode) {
+      ScreenOrientation.lock({ orientation: 'landscape' }).catch(() => {});
     }
-    return () => {
-      if (Capacitor.isNativePlatform()) {
-        ScreenOrientation.unlock().catch(() => {});
-      }
-    };
   }, [isVRMode]);
 
   // Handle Android Hardware Back Button to exit VR
   useEffect(() => {
-    let backListener: any = null;
+    let removeListener: (() => void) | null = null;
     if (Capacitor.isNativePlatform() && isVRMode) {
       App.addListener('backButton', () => {
         exitVRMode();
       }).then(l => {
-        backListener = l;
+        removeListener = () => l.remove();
       });
     }
     return () => {
-      if (backListener) {
-        backListener.remove();
+      if (removeListener) {
+        removeListener();
       }
     };
   }, [isVRMode, exitVRMode]);
@@ -421,12 +440,12 @@ const ModelDetail: React.FC = () => {
           hiddenIfInactive={true}
         />
 
-        <div style={{ padding: 16 }}>
-          {/* 3D Viewer Card */}
+        <div style={{ padding: '12px 14px' }}>
+          {/* 3D Viewer Card — clean, no floating controls inside */}
           <div className="glass-card" style={{ 
-            minHeight: 320, 
-            marginBottom: 24, 
-            borderRadius: 24, 
+            minHeight: 300, 
+            marginBottom: 10, 
+            borderRadius: 20, 
             overflow: 'hidden', 
             position: 'relative',
             display: 'flex',
@@ -483,185 +502,46 @@ const ModelDetail: React.FC = () => {
               </div>
             )}
 
-            {isDownloaded && modelSource ? (
+            {isDownloaded && modelSource && isViewActive ? (
               <>
                 <model-viewer 
                   id="main-viewer"
+                  ref={mainViewerRef}
                   src={modelSource} 
                   camera-controls={!isLocked}
                   auto-rotate={!isLocked}
                   scale={modelScale}
                   ar
                   ar-modes="scene-viewer webxr quick-look"
-                  shadow-intensity="1" 
-                  exposure="1.1"
-                  environment-image="neutral"
-                  style={{ width: '100%', height: '100%', minHeight: 300, display: isVRMode ? 'none' : 'block' }}
+                  shadow-intensity="0.6" 
+                  exposure="1.0"
+                  bounds="tight"
+                  style={{ width: '100%', height: '100%', minHeight: 300, display: isVRMode ? 'none' : 'block', touchAction: 'pan-y' }}
                 />
 
-                {/* Floating Real Dimensions Banner */}
-                {isRealScale && (
-                  <div style={{
-                    position: 'absolute',
-                    top: 12,
-                    right: 12,
-                    maxWidth: '60%',
-                    background: 'rgba(10, 22, 40, 0.94)',
-                    border: '1.5px solid #38bdf8',
-                    borderRadius: '12px',
-                    padding: '8px 12px',
-                    color: '#ffffff',
-                    zIndex: 20,
-                    boxShadow: '0 4px 16px rgba(0,0,0,0.6)',
-                    backdropFilter: 'blur(10px)',
-                    animation: 'fadeIn 0.25s ease'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#38bdf8', fontSize: '11px', fontWeight: 800, letterSpacing: '0.5px' }}>
-                      <span>📏</span>
-                      <span>MEDIDAS REALES:</span>
-                    </div>
-                    <div style={{ color: '#f1f5f9', fontSize: '12px', fontWeight: 700, marginTop: 2 }}>
-                      {model.realDimensions || REAL_DIMENSIONS[model.id] || "Escala 1:1 en hábitat natural"}
-                    </div>
-                    <div style={{ color: '#94a3b8', fontSize: '10px', marginTop: 3, lineHeight: 1.2 }}>
-                      Presiona <b>🌿 AR Nativo</b> abajo para proyectarlo en tu espacio en tamaño real.
-                    </div>
-                  </div>
-                )}
-
-                {/* Left Controls */}
+                {/* Minimal bottom overlay: only VR & AR */}
                 <div style={{
                   position: 'absolute',
-                  top: 12,
-                  left: 12,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 6,
-                  zIndex: 20
-                }}>
-                  {/* Centrar */}
-                  <button 
-                    onClick={handleCenterModel}
-                    style={{
-                      background: 'rgba(15, 30, 55, 0.85)',
-                      color: '#69f0ae',
-                      border: '1px solid rgba(105, 240, 174, 0.3)',
-                      padding: '6px 10px',
-                      borderRadius: '10px',
-                      fontSize: '11px',
-                      fontWeight: 700,
-                      backdropFilter: 'blur(8px)',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 4,
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
-                    }}
-                  >
-                    <span>🎯</span>
-                    <span>Centrar</span>
-                  </button>
-
-                  {/* Simulación (Flex) */}
-                  <button 
-                    onClick={() => {
-                      setIsRealScale(false);
-                      setModelScale('1 1 1');
-                    }}
-                    style={{
-                      background: !isRealScale ? 'rgba(105, 240, 174, 0.25)' : 'rgba(15, 30, 55, 0.85)',
-                      color: !isRealScale ? '#69f0ae' : '#c8d6e5',
-                      border: !isRealScale ? '1.5px solid #69f0ae' : '1px solid rgba(255,255,255,0.15)',
-                      padding: '6px 10px',
-                      borderRadius: '10px',
-                      fontSize: '11px',
-                      fontWeight: 700,
-                      backdropFilter: 'blur(8px)',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 4,
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
-                    }}
-                  >
-                    <span>📐</span>
-                    <span>Simulación</span>
-                  </button>
-
-                  {/* Tamaño Real */}
-                  <button 
-                    onClick={() => {
-                      setIsRealScale(true);
-                      setModelScale('1 1 1');
-                    }}
-                    style={{
-                      background: isRealScale ? 'rgba(56, 189, 248, 0.25)' : 'rgba(15, 30, 55, 0.85)',
-                      color: isRealScale ? '#38bdf8' : '#c8d6e5',
-                      border: isRealScale ? '1.5px solid #38bdf8' : '1px solid rgba(255,255,255,0.15)',
-                      padding: '6px 10px',
-                      borderRadius: '10px',
-                      fontSize: '11px',
-                      fontWeight: 700,
-                      backdropFilter: 'blur(8px)',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 4,
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
-                    }}
-                  >
-                    <span>📏</span>
-                    <span>Tamaño Real</span>
-                  </button>
-
-                  {/* Bloquear / Desbloquear */}
-                  <button 
-                    onClick={() => setIsLocked(!isLocked)}
-                    style={{
-                      background: isLocked ? 'rgba(239, 68, 68, 0.25)' : 'rgba(15, 30, 55, 0.85)',
-                      color: isLocked ? '#f87171' : '#c8d6e5',
-                      border: isLocked ? '1.5px solid #ef4444' : '1px solid rgba(255,255,255,0.15)',
-                      padding: '6px 10px',
-                      borderRadius: '10px',
-                      fontSize: '11px',
-                      fontWeight: 700,
-                      backdropFilter: 'blur(8px)',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 4,
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
-                    }}
-                  >
-                    <span>{isLocked ? '🔒' : '🔓'}</span>
-                    <span>{isLocked ? 'Fijado' : 'Libre'}</span>
-                  </button>
-                </div>
-
-                {/* Bottom Button row */}
-                <div style={{
-                  position: 'absolute',
-                  bottom: 12,
-                  left: 12,
-                  right: 12,
+                  bottom: 10,
+                  left: 10,
+                  right: 10,
                   display: 'flex',
                   justifyContent: 'space-between',
                   gap: 8,
                   zIndex: 10
                 }}>
-                  {/* VR button */}
                   <button 
                     onClick={() => setIsVRMode(true)}
                     style={{
-                      background: '#7c3aed',
+                      background: 'rgba(124, 58, 237, 0.85)',
                       color: '#fff',
-                      fontWeight: 'bold',
-                      padding: '8px 12px',
-                      borderRadius: 10,
+                      fontWeight: 700,
+                      padding: '6px 12px',
+                      borderRadius: 8,
                       border: 'none',
-                      fontSize: 12,
+                      fontSize: 11,
                       cursor: 'pointer',
-                      boxShadow: '0 4px 16px rgba(124,58,237,0.3)',
+                      backdropFilter: 'blur(8px)',
                       display: 'flex',
                       alignItems: 'center',
                       gap: 4
@@ -669,20 +549,18 @@ const ModelDetail: React.FC = () => {
                   >
                     🥽 VR
                   </button>
-
-                  {/* AR button */}
                   <button 
                     onClick={handleAR}
                     style={{
-                      background: '#69f0ae',
+                      background: 'rgba(105, 240, 174, 0.9)',
                       color: '#0a1628',
-                      fontWeight: 'bold',
-                      padding: '8px 12px',
-                      borderRadius: 10,
+                      fontWeight: 700,
+                      padding: '6px 12px',
+                      borderRadius: 8,
                       border: 'none',
-                      fontSize: 12,
+                      fontSize: 11,
                       cursor: 'pointer',
-                      boxShadow: '0 4px 16px rgba(105,240,174,0.3)',
+                      backdropFilter: 'blur(8px)',
                       display: 'flex',
                       alignItems: 'center',
                       gap: 4
@@ -695,6 +573,131 @@ const ModelDetail: React.FC = () => {
               </>
             ) : null}
           </div>
+
+          {/* Control bar — compact horizontal row OUTSIDE the viewer */}
+          {isDownloaded && modelSource && (
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-around',
+              alignItems: 'center',
+              gap: 4,
+              marginBottom: 10,
+              padding: '6px 4px',
+              background: 'rgba(15, 30, 55, 0.6)',
+              borderRadius: 12,
+              border: '1px solid rgba(255,255,255,0.06)'
+            }}>
+              <button 
+                onClick={handleCenterModel}
+                style={{
+                  background: 'transparent',
+                  color: '#69f0ae',
+                  border: 'none',
+                  padding: '6px 8px',
+                  borderRadius: 8,
+                  fontSize: 10,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 2
+                }}
+              >
+                <span style={{ fontSize: 16 }}>🎯</span>
+                <span>Centrar</span>
+              </button>
+              <button 
+                onClick={() => {
+                  setIsRealScale(false);
+                  setModelScale('1 1 1');
+                }}
+                style={{
+                  background: !isRealScale ? 'rgba(105, 240, 174, 0.15)' : 'transparent',
+                  color: !isRealScale ? '#69f0ae' : '#94a3b8',
+                  border: !isRealScale ? '1px solid rgba(105, 240, 174, 0.3)' : 'none',
+                  padding: '6px 8px',
+                  borderRadius: 8,
+                  fontSize: 10,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 2
+                }}
+              >
+                <span style={{ fontSize: 16 }}>📐</span>
+                <span>Simulación</span>
+              </button>
+              <button 
+                onClick={() => {
+                  setIsRealScale(true);
+                  setModelScale('1 1 1');
+                }}
+                style={{
+                  background: isRealScale ? 'rgba(56, 189, 248, 0.15)' : 'transparent',
+                  color: isRealScale ? '#38bdf8' : '#94a3b8',
+                  border: isRealScale ? '1px solid rgba(56, 189, 248, 0.3)' : 'none',
+                  padding: '6px 8px',
+                  borderRadius: 8,
+                  fontSize: 10,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 2
+                }}
+              >
+                <span style={{ fontSize: 16 }}>📏</span>
+                <span>Tamaño Real</span>
+              </button>
+              <button 
+                onClick={() => setIsLocked(!isLocked)}
+                style={{
+                  background: isLocked ? 'rgba(239, 68, 68, 0.15)' : 'transparent',
+                  color: isLocked ? '#f87171' : '#94a3b8',
+                  border: isLocked ? '1px solid rgba(239, 68, 68, 0.3)' : 'none',
+                  padding: '6px 8px',
+                  borderRadius: 8,
+                  fontSize: 10,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 2
+                }}
+              >
+                <span style={{ fontSize: 16 }}>{isLocked ? '🔒' : '🔓'}</span>
+                <span>{isLocked ? 'Fijado' : 'Libre'}</span>
+              </button>
+            </div>
+          )}
+
+          {/* Real Dimensions — inline panel below controls, only when active */}
+          {isDownloaded && isRealScale && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              marginBottom: 12,
+              padding: '8px 12px',
+              background: 'rgba(56, 189, 248, 0.08)',
+              border: '1px solid rgba(56, 189, 248, 0.25)',
+              borderRadius: 10,
+              animation: 'fadeIn 0.25s ease'
+            }}>
+              <span style={{ fontSize: 18 }}>📏</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ color: '#38bdf8', fontSize: 10, fontWeight: 800, letterSpacing: '0.5px', textTransform: 'uppercase' }}>Medidas Reales</div>
+                <div style={{ color: '#f1f5f9', fontSize: 13, fontWeight: 700, marginTop: 1 }}>
+                  {model.realDimensions || REAL_DIMENSIONS[model.id] || "Escala 1:1 en hábitat natural"}
+                </div>
+              </div>
+            </div>
+          )}
 
           <div 
             style={{ 

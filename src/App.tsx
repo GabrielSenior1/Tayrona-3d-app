@@ -29,12 +29,13 @@ import ModelDetail from './pages/ModelDetail';
 
 setupIonicReact({
   mode: 'ios', // Forza estilo Apple Liquid
+  swipeBackEnabled: false,
 });
 
 const App: React.FC = () => (
   <IonApp>
     <IonReactRouter>
-      <IonRouterOutlet>
+      <IonRouterOutlet swipeBackEnabled={false}>
         <Route exact path="/splash" component={Splash} />
         <Route exact path="/home" component={Home} />
         <Route exact path="/category/:id" component={Category} />

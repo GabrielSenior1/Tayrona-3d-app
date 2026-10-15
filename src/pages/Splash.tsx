@@ -9,94 +9,77 @@ const Splash: React.FC = () => {
   const [fadeOut, setFadeOut] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
 
+  const navigatedRef = useRef(false);
+  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  const clearAllTimers = () => {
+    timersRef.current.forEach(t => clearTimeout(t));
+    timersRef.current = [];
+  };
+
+  const goToHome = () => {
+    if (navigatedRef.current) return;
+    navigatedRef.current = true;
+    clearAllTimers();
+
+    const v = videoRef.current;
+    if (v) { 
+      try { v.pause(); v.style.display = 'none'; } catch (_) {}
+    }
+    
+    history.replace('/home');
+  };
+
   useEffect(() => {
-    let navigated = false;
-
-    const goToHome = () => {
-      if (navigated) return;
-      navigated = true;
-      // Hide video instantly to prevent native play button flash
-      const v = videoRef.current;
-      if (v) { v.style.display = 'none'; }
-      
-      // Fallback redirect if router fails
-      history.replace('/home');
-      setTimeout(() => {
-        if (window.location.pathname !== '/home') {
-          window.location.replace('/home');
-        }
-      }, 1000);
-    };
-
-    let playCheck: ReturnType<typeof setTimeout>;
-    let progressCheck: ReturnType<typeof setInterval>;
-    let lastTime = -1;
-
     const video = videoRef.current;
+
     if (video) {
-      video.addEventListener('playing', () => {
+      const onPlaying = () => {
         setIsPlaying(true);
-        clearTimeout(playCheck); // Stop fallback if it actually plays
-        
-        // Cortar el video exactamente a los 10 segundos para evitar el fondo oscuro del final
-        setTimeout(goToHome, 10000);
-        
-        // Verify the video is actually progressing (not stuck)
-        progressCheck = setInterval(() => {
-          lastTime = video.currentTime;
-        }, 3000);
-      });
+        // Auto-navigate after 10 seconds of playback
+        const cutTimer = setTimeout(goToHome, 10000);
+        timersRef.current.push(cutTimer);
+      };
+
+      video.addEventListener('playing', onPlaying);
       video.addEventListener('ended', goToHome);
       video.addEventListener('error', () => setVideoFailed(true));
       
-      // Fetch video as blob to bypass WKWebView byte-range request bug with capacitor:// scheme
       fetch('/assets/splash2.mp4')
         .then(res => res.blob())
         .then(blob => {
-          if (!video) return;
+          if (!video || navigatedRef.current) return;
           video.src = URL.createObjectURL(blob);
           const p = video.play();
-          if (p) p.catch(() => {
-            console.log('video.play() promise rejected');
-          });
+          if (p) p.catch(() => {});
         })
-        .catch(err => {
-          console.error("Failed to fetch splash video blob", err);
+        .catch(() => {
           setVideoFailed(true);
         });
+
+      return () => {
+        video.removeEventListener('playing', onPlaying);
+        video.removeEventListener('ended', goToHome);
+        clearAllTimers();
+      };
     }
 
-    // If playing doesn't fire in 3.5s, force fallback
-    playCheck = setTimeout(() => {
-      setVideoFailed(true);
-    }, 3500);
-
-    // Absolute safety: go home after 13s (video is ~10s long)
-    const safety = setTimeout(goToHome, 13000);
+    // Safety fallback: 12 seconds max
+    const safetyTimer = setTimeout(goToHome, 12000);
+    timersRef.current.push(safetyTimer);
 
     return () => {
-      if (video) {
-        video.removeEventListener('ended', goToHome);
-      }
-      clearTimeout(playCheck);
-      clearTimeout(safety);
-      clearInterval(progressCheck);
+      clearAllTimers();
     };
   }, [history]);
 
-  // If video fails, use fallback with timer
+  // If video fails, quickly go home after brief title flash
   useEffect(() => {
-    if (!videoFailed) return;
-    const t = setTimeout(() => {
-      history.replace('/home');
-      setTimeout(() => {
-        if (window.location.pathname !== '/home') {
-          window.location.replace('/home');
-        }
-      }, 1000);
-    }, 2500);
+    if (!videoFailed || navigatedRef.current) return;
+    const t = setTimeout(goToHome, 2000);
+    timersRef.current.push(t);
     return () => clearTimeout(t);
-  }, [videoFailed, history]);
+  }, [videoFailed]);
 
   return (
     <IonPage>
@@ -143,16 +126,9 @@ const Splash: React.FC = () => {
             </div>
           )}
 
-          {/* Absolute failsafe Skip Button */}
+          {/* Skip Button */}
           <button 
-            onClick={() => {
-              history.replace('/home');
-              setTimeout(() => {
-                if (window.location.pathname !== '/home') {
-                  window.location.replace('/home');
-                }
-              }, 500);
-            }}
+            onClick={goToHome}
             style={{
               position: 'absolute',
               bottom: '40px',
@@ -165,6 +141,7 @@ const Splash: React.FC = () => {
               letterSpacing: '2px',
               backdropFilter: 'blur(10px)',
               zIndex: 100,
+              cursor: 'pointer'
             }}
           >
             SALTAR
