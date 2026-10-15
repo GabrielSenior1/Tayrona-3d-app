@@ -26,8 +26,6 @@ const ModelDetail: React.FC = () => {
   const [isVRMode, setIsVRMode] = useState(false);
   const [vrEye1Mounted, setVrEye1Mounted] = useState(false);
   const [vrEye2Mounted, setVrEye2Mounted] = useState(false);
-  const [eye1Ready, setEye1Ready] = useState(false);
-  const [eye2Ready, setEye2Ready] = useState(false);
   const [vrLoaded, setVrLoaded] = useState(false);
   const vrEye1Ref = useRef<any>(null);
   const vrEye2Ref = useRef<any>(null);
@@ -126,43 +124,38 @@ const ModelDetail: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isVRMode, exitVRMode]);
 
-  // Staged mounting for VR eyes to prevent simultaneous WebGL context spikes
+  // Staged mounting for VR eyes and auto-dismiss loading text after 1 second
   useEffect(() => {
     if (isVRMode) {
       setVrLoaded(false);
-      setEye1Ready(false);
-      setEye2Ready(false);
       setVrEye1Mounted(false);
       setVrEye2Mounted(false);
       vrAngleRef.current = 0;
 
       const t1 = setTimeout(() => {
         setVrEye1Mounted(true);
-      }, 150);
+      }, 100);
 
       const t2 = setTimeout(() => {
         setVrEye2Mounted(true);
-      }, 450);
+      }, 300);
+
+      // Dismiss loading overlay after 1 second so the 3D model appears cleanly
+      const tDismiss = setTimeout(() => {
+        setVrLoaded(true);
+      }, 1000);
 
       return () => {
         clearTimeout(t1);
         clearTimeout(t2);
+        clearTimeout(tDismiss);
       };
     } else {
       setVrEye1Mounted(false);
       setVrEye2Mounted(false);
-      setEye1Ready(false);
-      setEye2Ready(false);
       setVrLoaded(false);
     }
   }, [isVRMode]);
-
-  // When both eyes have loaded their 3D models, hide the VR loading overlay
-  useEffect(() => {
-    if (eye1Ready && eye2Ready) {
-      setVrLoaded(true);
-    }
-  }, [eye1Ready, eye2Ready]);
 
   // Synchronized stereoscopic rotation loop for Cardboard VR
   // Both eyes rotate in exact lockstep, with a precise 2.5° parallax disparity for real 3D depth
@@ -626,64 +619,7 @@ const ModelDetail: React.FC = () => {
             touchAction: 'none'
           }}
         >
-          {/* Top-Right Exit Button (Safe Area aware) */}
-          <button
-            onClick={(e) => { e.stopPropagation(); exitVRMode(); }}
-            onTouchEnd={(e) => { e.stopPropagation(); exitVRMode(); }}
-            onPointerDown={(e) => { e.stopPropagation(); exitVRMode(); }}
-            style={{
-              position: 'fixed',
-              top: 'max(14px, env(safe-area-inset-top, 14px))',
-              right: 'max(16px, env(safe-area-inset-right, 16px))',
-              zIndex: 1000000,
-              background: 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)',
-              color: '#ffffff',
-              border: '2px solid rgba(255, 255, 255, 0.9)',
-              borderRadius: '14px',
-              padding: '10px 20px',
-              fontSize: '15px',
-              fontWeight: 800,
-              cursor: 'pointer',
-              boxShadow: '0 4px 20px rgba(220, 38, 38, 0.6), 0 2px 8px rgba(0,0,0,0.8)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              letterSpacing: '0.5px'
-            }}
-          >
-            <span style={{ fontSize: '16px' }}>✖</span>
-            <span>Salir VR</span>
-          </button>
-
-          {/* Top-Left Back Button (Always accessible regardless of notch orientation) */}
-          <button
-            onClick={(e) => { e.stopPropagation(); exitVRMode(); }}
-            onTouchEnd={(e) => { e.stopPropagation(); exitVRMode(); }}
-            onPointerDown={(e) => { e.stopPropagation(); exitVRMode(); }}
-            style={{
-              position: 'fixed',
-              top: 'max(14px, env(safe-area-inset-top, 14px))',
-              left: 'max(16px, env(safe-area-inset-left, 16px))',
-              zIndex: 1000000,
-              background: 'rgba(15, 23, 42, 0.85)',
-              color: '#ffffff',
-              border: '1.5px solid rgba(255, 255, 255, 0.4)',
-              borderRadius: '14px',
-              padding: '10px 18px',
-              fontSize: '14px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              boxShadow: '0 4px 16px rgba(0, 0, 0, 0.7)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              backdropFilter: 'blur(8px)'
-            }}
-          >
-            <span>← Volver</span>
-          </button>
-
-          {/* Center Bottom Tap Pill to Exit */}
+          {/* Center Bottom Tap Pill to Exit (unobtrusive, no top buttons) */}
           <div
             onClick={(e) => { e.stopPropagation(); exitVRMode(); }}
             onTouchEnd={(e) => { e.stopPropagation(); exitVRMode(); }}
@@ -693,19 +629,19 @@ const ModelDetail: React.FC = () => {
               left: '50%',
               transform: 'translateX(-50%)',
               zIndex: 1000000,
-              background: 'rgba(0, 0, 0, 0.75)',
-              color: '#e2e8f0',
-              border: '1px solid rgba(255, 255, 255, 0.25)',
+              background: 'rgba(0, 0, 0, 0.65)',
+              color: '#cbd5e1',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
               borderRadius: '20px',
-              padding: '6px 16px',
+              padding: '6px 18px',
               fontSize: '12px',
-              fontWeight: 600,
+              fontWeight: 500,
               cursor: 'pointer',
               backdropFilter: 'blur(8px)',
               pointerEvents: 'auto'
             }}
           >
-            ✕ Toca aquí para salir
+            Tocar para salir de aquí
           </div>
 
           {/* Loading indicator while model compiles in VR */}
@@ -797,7 +733,6 @@ const ModelDetail: React.FC = () => {
                 scale={modelScale || '1 1 1'}
                 shadow-intensity="1"
                 exposure="1.2"
-                onLoad={() => setEye1Ready(true)}
                 onError={(err: any) => console.warn('Left eye load error:', err)}
                 style={{
                   width: '100%',
@@ -849,7 +784,6 @@ const ModelDetail: React.FC = () => {
                 scale={modelScale || '1 1 1'}
                 shadow-intensity="1"
                 exposure="1.2"
-                onLoad={() => setEye2Ready(true)}
                 onError={(err: any) => console.warn('Right eye load error:', err)}
                 style={{
                   width: '100%',
