@@ -1,13 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { IonPage, IonContent, IonHeader, IonToolbar, IonButtons, IonBackButton, IonTitle } from '@ionic/react';
 import { useParams } from 'react-router-dom';
 import { modelsDatabase } from '../data/modelsData';
 import { DownloadManager } from '../services/DownloadManager';
 import { Capacitor, registerPlugin } from '@capacitor/core';
-const ARLauncher = registerPlugin<any>('ARLauncher');
+import { App } from '@capacitor/app';
 import { ScreenOrientation } from '@capacitor/screen-orientation';
 import AvatarAsistente from '../components/AvatarAsistente';
 import guiones from '../data/guiones.json';
+
+const ARLauncher = registerPlugin<any>('ARLauncher');
+
 const ModelDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const model = modelsDatabase.find(m => m.id === id);
@@ -15,10 +18,44 @@ const ModelDetail: React.FC = () => {
   const [isDownloaded, setIsDownloaded] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [localUri, setLocalUri] = useState<string>('');
-  const [iosLocalUri, setIosLocalUri] = useState<string>('');
+  const [remoteUrl, setRemoteUrl] = useState<string>('');
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [downloadSpeedText, setDownloadSpeedText] = useState("");
+  
+  // VR states & refs for synchronized stereoscopic Cardboard view
   const [isVRMode, setIsVRMode] = useState(false);
+  const [vrEye1Mounted, setVrEye1Mounted] = useState(false);
+  const [vrEye2Mounted, setVrEye2Mounted] = useState(false);
+  const [eye1Ready, setEye1Ready] = useState(false);
+  const [eye2Ready, setEye2Ready] = useState(false);
+  const [vrLoaded, setVrLoaded] = useState(false);
+  const vrEye1Ref = useRef<any>(null);
+  const vrEye2Ref = useRef<any>(null);
+  const vrAngleRef = useRef<number>(0);
+  
+  // Model controls
+  const [modelScale, setModelScale] = useState('1 1 1');
+  const [isLocked, setIsLocked] = useState(false);
+  const [isPreparingAR, setIsPreparingAR] = useState(false);
+
+  // Assistant states
+  const [modelText, setModelText] = useState("");
+  const [hasSpoken, setHasSpoken] = useState(false);
+
+  // Exit VR cleanly and restore portrait orientation
+  const exitVRMode = useCallback(async () => {
+    setIsVRMode(false);
+    if (Capacitor.isNativePlatform()) {
+      try {
+        await ScreenOrientation.lock({ orientation: 'portrait' });
+        setTimeout(() => {
+          ScreenOrientation.unlock().catch(() => {});
+        }, 500);
+      } catch {
+        ScreenOrientation.unlock().catch(() => {});
+      }
+    }
+  }, []);
 
   useEffect(() => {
     // Dynamic import to prevent WebGL crash on boot
@@ -31,15 +68,146 @@ const ModelDetail: React.FC = () => {
           DownloadManager.getLocalModelURI(model.androidModel).then(setLocalUri);
         }
       });
-      if (Capacitor.getPlatform() === 'ios' && model.iosModel) {
-        DownloadManager.isIOSModelDownloaded(model.iosModel).then((exists) => {
-          if (exists) {
-            DownloadManager.getLocalIOSModelURI(model.iosModel).then(setIosLocalUri);
-          }
-        });
-      }
+      DownloadManager.getRemoteModelURL(model.androidModel).then((url) => {
+        if (url) setRemoteUrl(url);
+      }).catch(() => {});
     }
   }, [model]);
+
+  useEffect(() => {
+    if (isDownloaded && !hasSpoken && model) {
+      setHasSpoken(true);
+      setModelText((guiones.modelos as any)[model.id] || guiones.modelos.default);
+    }
+  }, [isDownloaded, hasSpoken, model]);
+
+  // Handle VR Orientation
+  useEffect(() => {
+    if (Capacitor.isNativePlatform()) {
+      if (isVRMode) {
+        ScreenOrientation.lock({ orientation: 'landscape' }).catch(() => {});
+      } else {
+        ScreenOrientation.unlock().catch(() => {});
+      }
+    }
+    return () => {
+      if (Capacitor.isNativePlatform()) {
+        ScreenOrientation.unlock().catch(() => {});
+      }
+    };
+  }, [isVRMode]);
+
+  // Handle Android Hardware Back Button to exit VR
+  useEffect(() => {
+    let backListener: any = null;
+    if (Capacitor.isNativePlatform() && isVRMode) {
+      App.addListener('backButton', () => {
+        exitVRMode();
+      }).then(l => {
+        backListener = l;
+      });
+    }
+    return () => {
+      if (backListener) {
+        backListener.remove();
+      }
+    };
+  }, [isVRMode, exitVRMode]);
+
+  // Keyboard Escape listener for web/emulator
+  useEffect(() => {
+    if (!isVRMode) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        exitVRMode();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isVRMode, exitVRMode]);
+
+  // Staged mounting for VR eyes to prevent simultaneous WebGL context spikes
+  useEffect(() => {
+    if (isVRMode) {
+      setVrLoaded(false);
+      setEye1Ready(false);
+      setEye2Ready(false);
+      setVrEye1Mounted(false);
+      setVrEye2Mounted(false);
+      vrAngleRef.current = 0;
+
+      const t1 = setTimeout(() => {
+        setVrEye1Mounted(true);
+      }, 150);
+
+      const t2 = setTimeout(() => {
+        setVrEye2Mounted(true);
+      }, 450);
+
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+      };
+    } else {
+      setVrEye1Mounted(false);
+      setVrEye2Mounted(false);
+      setEye1Ready(false);
+      setEye2Ready(false);
+      setVrLoaded(false);
+    }
+  }, [isVRMode]);
+
+  // When both eyes have loaded their 3D models, hide the VR loading overlay
+  useEffect(() => {
+    if (eye1Ready && eye2Ready) {
+      setVrLoaded(true);
+    }
+  }, [eye1Ready, eye2Ready]);
+
+  // Synchronized stereoscopic rotation loop for Cardboard VR
+  // Both eyes rotate in exact lockstep, with a precise 2.5° parallax disparity for real 3D depth
+  useEffect(() => {
+    if (!isVRMode) return;
+    let animationFrameId: number;
+    let lastTime = performance.now();
+    const speedDegPerSec = 20; // 20 degrees per second smooth rotation
+    const ipdOffset = 2.5; // Stereoscopic disparity angle
+
+    const loop = (currentTime: number) => {
+      const delta = Math.min((currentTime - lastTime) / 1000, 0.1);
+      lastTime = currentTime;
+      vrAngleRef.current = (vrAngleRef.current + speedDegPerSec * delta) % 360;
+
+      const baseAngle = vrAngleRef.current;
+      const leftOrbit = `${baseAngle - ipdOffset / 2}deg 75deg 105%`;
+      const rightOrbit = `${baseAngle + ipdOffset / 2}deg 75deg 105%`;
+
+      if (vrEye1Ref.current) {
+        try {
+          vrEye1Ref.current.cameraOrbit = leftOrbit;
+          if (typeof vrEye1Ref.current.jumpCameraToGoal === 'function') {
+            vrEye1Ref.current.jumpCameraToGoal();
+          }
+        } catch (_) {}
+      }
+
+      if (vrEye2Ref.current) {
+        try {
+          vrEye2Ref.current.cameraOrbit = rightOrbit;
+          if (typeof vrEye2Ref.current.jumpCameraToGoal === 'function') {
+            vrEye2Ref.current.jumpCameraToGoal();
+          }
+        } catch (_) {}
+      }
+
+      animationFrameId = requestAnimationFrame(loop);
+    };
+
+    animationFrameId = requestAnimationFrame(loop);
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, [isVRMode]);
 
   const handleDownload = async () => {
     if (!model) return;
@@ -76,7 +244,6 @@ const ModelDetail: React.FC = () => {
       // En iOS, también descargar el .usdz en segundo plano para AR offline
       if (Capacitor.getPlatform() === 'ios' && model.iosModel) {
         DownloadManager.downloadIOSModel(model.iosModel)
-          .then(setIosLocalUri)
           .catch(err => console.error('Error descargando .usdz en segundo plano:', err));
       }
     } catch (e: any) {
@@ -87,24 +254,6 @@ const ModelDetail: React.FC = () => {
       setDownloadSpeedText("");
     }
   };
-
-  // Handle VR Orientation
-  useEffect(() => {
-    if (Capacitor.isNativePlatform()) {
-      if (isVRMode) {
-        ScreenOrientation.lock({ orientation: 'landscape' }).catch(() => {});
-      } else {
-        ScreenOrientation.unlock().catch(() => {});
-      }
-    }
-    return () => {
-      if (Capacitor.isNativePlatform()) {
-        ScreenOrientation.unlock().catch(() => {});
-      }
-    };
-  }, [isVRMode]);
-
-  const [isPreparingAR, setIsPreparingAR] = useState(false);
 
   // AR handler: uses local files for offline support
   // Android: model-viewer.activateAR() uses the .glb already loaded in memory
@@ -162,9 +311,9 @@ const ModelDetail: React.FC = () => {
       try {
         if (Capacitor.isNativePlatform()) {
           setIsPreparingAR(true);
-          let remoteUrl = '';
+          let rUrl = '';
           try {
-            remoteUrl = await DownloadManager.getRemoteModelURL(model.androidModel);
+            rUrl = await DownloadManager.getRemoteModelURL(model.androidModel);
           } catch (err) {
             console.warn("No se pudo obtener URL remota, usando archivo local:", err);
           } finally {
@@ -174,7 +323,7 @@ const ModelDetail: React.FC = () => {
           // Usar el plugin nativo que abre Google Scene Viewer con máxima calidad y escala
           await ARLauncher.openAR({ 
             fileName: model.androidModel,
-            fileUrl: remoteUrl,
+            fileUrl: rUrl,
             title: model.title 
           });
         } else {
@@ -195,107 +344,7 @@ const ModelDetail: React.FC = () => {
 
   if (!model) return <IonPage><IonContent>No encontrado</IonContent></IonPage>;
 
-  // VR Mode: split screen for cardboard glasses
-  if (isVRMode && isDownloaded && localUri) {
-    return (
-      <IonPage>
-        <IonContent className="ion-no-padding" fullscreen scrollY={false}>
-          <div 
-            style={{ 
-              display: 'flex', 
-              width: '100vw', 
-              height: '100vh', 
-              backgroundColor: '#000',
-              position: 'relative'
-            }}
-          >
-            {/* Exit hint */}
-            <div style={{
-              position: 'absolute',
-              top: 8,
-              left: '50%',
-              transform: 'translateX(-50%)',
-              zIndex: 50,
-              color: 'rgba(255,255,255,0.5)',
-              fontSize: 11,
-              padding: '4px 12px',
-              borderRadius: 20,
-              background: 'rgba(0,0,0,0.4)'
-            }}
-              onClick={() => setIsVRMode(false)}
-            >
-              ✕ Salir de VR
-            </div>
-
-            {/* Center divider line */}
-            <div style={{
-              position: 'absolute',
-              top: 0,
-              bottom: 0,
-              left: '50%',
-              width: 2,
-              background: 'rgba(255,255,255,0.15)',
-              zIndex: 10
-            }}></div>
-
-            {/* Left eye */}
-            <div style={{ 
-              width: '50%', 
-              height: '100%', 
-              overflow: 'hidden',
-              borderRadius: '50% 20% 20% 50% / 50% 20% 20% 50%',
-              margin: '10px 5px 10px 10px',
-              border: '2px solid rgba(255,255,255,0.1)',
-              boxShadow: 'inset 0 0 50px rgba(0,0,0,0.8)'
-            }}>
-              {/* @ts-ignore */}
-              <model-viewer 
-                src={localUri} 
-                auto-rotate 
-                rotation-per-second="20deg"
-                shadow-intensity="0.8"
-                exposure="1.2"
-                environment-image="neutral"
-                style={{ width: '100%', height: '100%', background: '#000', transform: 'scale(1.1)' }}
-              ></model-viewer>
-            </div>
-
-            {/* Right eye */}
-            <div style={{ 
-              width: '50%', 
-              height: '100%', 
-              overflow: 'hidden',
-              borderRadius: '20% 50% 50% 20% / 20% 50% 50% 20%',
-              margin: '10px 10px 10px 5px',
-              border: '2px solid rgba(255,255,255,0.1)',
-              boxShadow: 'inset 0 0 50px rgba(0,0,0,0.8)'
-            }}>
-              {/* @ts-ignore */}
-              <model-viewer 
-                src={localUri} 
-                auto-rotate 
-                rotation-per-second="20deg"
-                shadow-intensity="0.8"
-                exposure="1.2"
-                environment-image="neutral"
-                style={{ width: '100%', height: '100%', background: '#000', transform: 'scale(1.1)' }}
-              ></model-viewer>
-            </div>
-          </div>
-        </IonContent>
-      </IonPage>
-    );
-  }
-
-  const [modelText, setModelText] = useState("");
-  const [hasSpoken, setHasSpoken] = useState(false);
-
-  useEffect(() => {
-    if (isDownloaded && !hasSpoken && model) {
-      setHasSpoken(true);
-      setModelText((guiones.modelos as any)[model.id] || guiones.modelos.default);
-    }
-  }, [isDownloaded, hasSpoken, model]);
+  const modelSource = localUri || remoteUrl;
 
   return (
     <IonPage>
@@ -327,6 +376,7 @@ const ModelDetail: React.FC = () => {
           </IonButtons>
         </IonToolbar>
       </IonHeader>
+
       <IonContent style={{ '--background': '#0a1628' } as any} fullscreen>
         <AvatarAsistente 
           textoGuion={modelText} 
@@ -336,6 +386,7 @@ const ModelDetail: React.FC = () => {
           noOverlay={true}
           hiddenIfInactive={true}
         />
+
         <div style={{ padding: 16 }}>
           {/* 3D Viewer Card */}
           <div className="glass-card" style={{ 
@@ -398,23 +449,66 @@ const ModelDetail: React.FC = () => {
               </div>
             )}
 
-            {isDownloaded && localUri ? (
+            {isDownloaded && modelSource ? (
               <>
-                {/* @ts-ignore */}
                 <model-viewer 
                   id="main-viewer"
-                  src={localUri} 
-                  camera-controls 
-                  auto-rotate 
+                  src={modelSource} 
+                  camera-controls={!isLocked}
+                  auto-rotate={!isLocked}
+                  scale={modelScale}
                   ar
                   ar-modes="scene-viewer webxr quick-look"
                   shadow-intensity="1" 
                   exposure="1.1"
                   environment-image="neutral"
-                  style={{ width: '100%', height: '100%', minHeight: 300 }}
-                ></model-viewer>
+                  style={{ width: '100%', height: '100%', minHeight: 300, display: isVRMode ? 'none' : 'block' }}
+                />
 
-                {/* Button row */}
+                {/* Left Controls */}
+                <div style={{
+                  position: 'absolute',
+                  top: 12,
+                  left: 12,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 8,
+                  zIndex: 10
+                }}>
+                  <button 
+                    onClick={() => {
+                      const viewer = document.getElementById('main-viewer') as any;
+                      if (viewer && viewer.cameraTarget) {
+                        viewer.cameraTarget = 'auto auto auto';
+                        viewer.cameraOrbit = '0deg 75deg 105%';
+                      }
+                      setModelScale('1 1 1');
+                    }}
+                    style={{ background: 'rgba(105,240,174,0.8)', color: '#000', padding: '6px', borderRadius: '8px', fontSize: '10px', fontWeight: 'bold' }}
+                  >
+                    Centrar
+                  </button>
+                  <button 
+                    onClick={() => setModelScale('1 1 1')}
+                    style={{ background: 'rgba(255,255,255,0.8)', color: '#000', padding: '6px', borderRadius: '8px', fontSize: '10px', fontWeight: 'bold' }}
+                  >
+                    Tamaño Flex
+                  </button>
+                  <button 
+                    onClick={() => setModelScale('2 2 2')}
+                    style={{ background: 'rgba(255,255,255,0.8)', color: '#000', padding: '6px', borderRadius: '8px', fontSize: '10px', fontWeight: 'bold' }}
+                  >
+                    Tamaño Real
+                  </button>
+                  <button 
+                    onClick={() => setIsLocked(!isLocked)}
+                    style={{ background: isLocked ? 'rgba(255,0,0,0.8)' : 'rgba(0,150,255,0.8)', color: '#fff', padding: '6px', borderRadius: '8px', fontSize: '10px', fontWeight: 'bold' }}
+                  >
+                    {isLocked ? 'Desbloquear' : 'Bloquear'}
+                  </button>
+                </div>
+
+                {/* Bottom Button row */}
                 <div style={{
                   position: 'absolute',
                   bottom: 12,
@@ -446,8 +540,6 @@ const ModelDetail: React.FC = () => {
                     🥽 VR
                   </button>
 
-                  {/* Removed 3D HD Button */}
-
                   {/* AR button */}
                   <button 
                     onClick={handleAR}
@@ -467,7 +559,7 @@ const ModelDetail: React.FC = () => {
                     }}
                     disabled={isPreparingAR}
                   >
-                    {isPreparingAR ? '⏳ Preparando AR...' : '🌿 AR'}
+                    {isPreparingAR ? '⏳ Preparando...' : '🌿 AR Nativo'}
                   </button>
                 </div>
               </>
@@ -513,6 +605,264 @@ const ModelDetail: React.FC = () => {
           
         </div>
       </IonContent>
+
+      {/* VR Mode: Fullscreen split-screen overlay for cardboard glasses */}
+      {isVRMode && modelSource && (
+        <div
+          id="vr-fullscreen-overlay"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            width: '100vw',
+            height: '100vh',
+            backgroundColor: '#000000',
+            zIndex: 999999,
+            display: 'flex',
+            flexDirection: 'row',
+            overflow: 'hidden',
+            touchAction: 'none'
+          }}
+        >
+          {/* Top-Right Exit Button (Safe Area aware) */}
+          <button
+            onClick={(e) => { e.stopPropagation(); exitVRMode(); }}
+            onTouchEnd={(e) => { e.stopPropagation(); exitVRMode(); }}
+            onPointerDown={(e) => { e.stopPropagation(); exitVRMode(); }}
+            style={{
+              position: 'fixed',
+              top: 'max(14px, env(safe-area-inset-top, 14px))',
+              right: 'max(16px, env(safe-area-inset-right, 16px))',
+              zIndex: 1000000,
+              background: 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)',
+              color: '#ffffff',
+              border: '2px solid rgba(255, 255, 255, 0.9)',
+              borderRadius: '14px',
+              padding: '10px 20px',
+              fontSize: '15px',
+              fontWeight: 800,
+              cursor: 'pointer',
+              boxShadow: '0 4px 20px rgba(220, 38, 38, 0.6), 0 2px 8px rgba(0,0,0,0.8)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              letterSpacing: '0.5px'
+            }}
+          >
+            <span style={{ fontSize: '16px' }}>✖</span>
+            <span>Salir VR</span>
+          </button>
+
+          {/* Top-Left Back Button (Always accessible regardless of notch orientation) */}
+          <button
+            onClick={(e) => { e.stopPropagation(); exitVRMode(); }}
+            onTouchEnd={(e) => { e.stopPropagation(); exitVRMode(); }}
+            onPointerDown={(e) => { e.stopPropagation(); exitVRMode(); }}
+            style={{
+              position: 'fixed',
+              top: 'max(14px, env(safe-area-inset-top, 14px))',
+              left: 'max(16px, env(safe-area-inset-left, 16px))',
+              zIndex: 1000000,
+              background: 'rgba(15, 23, 42, 0.85)',
+              color: '#ffffff',
+              border: '1.5px solid rgba(255, 255, 255, 0.4)',
+              borderRadius: '14px',
+              padding: '10px 18px',
+              fontSize: '14px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              boxShadow: '0 4px 16px rgba(0, 0, 0, 0.7)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              backdropFilter: 'blur(8px)'
+            }}
+          >
+            <span>← Volver</span>
+          </button>
+
+          {/* Center Bottom Tap Pill to Exit */}
+          <div
+            onClick={(e) => { e.stopPropagation(); exitVRMode(); }}
+            onTouchEnd={(e) => { e.stopPropagation(); exitVRMode(); }}
+            style={{
+              position: 'fixed',
+              bottom: 'max(12px, env(safe-area-inset-bottom, 12px))',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              zIndex: 1000000,
+              background: 'rgba(0, 0, 0, 0.75)',
+              color: '#e2e8f0',
+              border: '1px solid rgba(255, 255, 255, 0.25)',
+              borderRadius: '20px',
+              padding: '6px 16px',
+              fontSize: '12px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              backdropFilter: 'blur(8px)',
+              pointerEvents: 'auto'
+            }}
+          >
+            ✕ Toca aquí para salir
+          </div>
+
+          {/* Loading indicator while model compiles in VR */}
+          {!vrLoaded && (
+            <div
+              style={{
+                position: 'fixed',
+                inset: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'rgba(0, 0, 0, 0.85)',
+                zIndex: 999998,
+                pointerEvents: 'none',
+                gap: '12px'
+              }}
+            >
+              <div 
+                style={{
+                  width: '42px',
+                  height: '42px',
+                  border: '3px solid rgba(105, 240, 174, 0.2)',
+                  borderTop: '3px solid #69f0ae',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite'
+                }}
+              />
+              <p style={{ color: '#69f0ae', fontSize: '15px', fontWeight: 'bold', margin: 0 }}>
+                Iniciando modo Cardboard VR...
+              </p>
+              <p style={{ color: '#94a3b8', fontSize: '12px', margin: 0 }}>
+                Inserta tu teléfono en el visor
+              </p>
+            </div>
+          )}
+
+          {/* Center Divider Line for Cardboard separator */}
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              bottom: 0,
+              left: '50%',
+              width: '2px',
+              background: 'rgba(255, 255, 255, 0.25)',
+              zIndex: 50,
+              transform: 'translateX(-50%)',
+              pointerEvents: 'none'
+            }}
+          />
+
+          {/* Left Eye Viewport */}
+          <div
+            style={{
+              width: '50vw',
+              height: '100vh',
+              position: 'relative',
+              overflow: 'hidden',
+              background: '#000',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            {/* Center Focus Dot */}
+            <div
+              style={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                width: '6px',
+                height: '6px',
+                borderRadius: '50%',
+                background: 'rgba(255, 255, 255, 0.4)',
+                zIndex: 40,
+                pointerEvents: 'none'
+              }}
+            />
+
+            {vrEye1Mounted && (
+              <model-viewer
+                ref={vrEye1Ref}
+                src={modelSource}
+                camera-orbit="-1.25deg 75deg 105%"
+                camera-target="auto auto auto"
+                field-of-view="auto"
+                scale={modelScale || '1 1 1'}
+                shadow-intensity="1"
+                exposure="1.2"
+                onLoad={() => setEye1Ready(true)}
+                onError={(err: any) => console.warn('Left eye load error:', err)}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  minWidth: '200px',
+                  minHeight: '200px',
+                  background: '#000'
+                }}
+              />
+            )}
+          </div>
+
+          {/* Right Eye Viewport */}
+          <div
+            style={{
+              width: '50vw',
+              height: '100vh',
+              position: 'relative',
+              overflow: 'hidden',
+              background: '#000',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            {/* Center Focus Dot */}
+            <div
+              style={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                width: '6px',
+                height: '6px',
+                borderRadius: '50%',
+                background: 'rgba(255, 255, 255, 0.4)',
+                zIndex: 40,
+                pointerEvents: 'none'
+              }}
+            />
+
+            {vrEye2Mounted && (
+              <model-viewer
+                ref={vrEye2Ref}
+                src={modelSource}
+                camera-orbit="1.25deg 75deg 105%"
+                camera-target="auto auto auto"
+                field-of-view="auto"
+                scale={modelScale || '1 1 1'}
+                shadow-intensity="1"
+                exposure="1.2"
+                onLoad={() => setEye2Ready(true)}
+                onError={(err: any) => console.warn('Right eye load error:', err)}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  minWidth: '200px',
+                  minHeight: '200px',
+                  background: '#000'
+                }}
+              />
+            )}
+          </div>
+        </div>
+      )}
     </IonPage>
   );
 };

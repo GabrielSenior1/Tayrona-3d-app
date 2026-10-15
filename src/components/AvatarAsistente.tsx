@@ -209,9 +209,18 @@ const AvatarAsistente: React.FC<AvatarProps> = ({
               />
             </div>
             <div className="rpg-dialog" style={{ cursor: 'pointer' }} onClick={handleContainerClick}>
-              <div className="rpg-name-badge">SIMI • Guía Tayrona</div>
+              <div className="rpg-name-badge" style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                <span>SIMI • Guía Tayrona</span>
+                <span 
+                  onClick={(e) => { e.stopPropagation(); handleSkip(e); }}
+                  style={{ color: '#ff5252', fontSize: '18px', padding: '0 8px', marginLeft: 'auto' }}
+                >
+                  ✖
+                </span>
+              </div>
               <div className="rpg-text">{activeText}</div>
-              <div className="rpg-actions" style={{ justifyContent: 'flex-end' }}>
+              <div className="rpg-actions" style={{ justifyContent: 'space-between' }}>
+                <div className="rpg-skip" onClick={(e) => { e.stopPropagation(); handleSkip(e); }} style={{ color: '#ff5252' }}>Saltar</div>
                 <div className="rpg-continue">Toca para continuar ▾</div>
               </div>
             </div>
